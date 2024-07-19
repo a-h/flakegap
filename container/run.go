@@ -35,7 +35,7 @@ func Run(ctx context.Context, mode string, codePath, nixExportPath string) (err 
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Image:        "ghcr.io/a-h/flakegap:latest",
+		Image:        "ghcr.io/a-h/flakegap:main",
 		Entrypoint:   []string{"/usr/local/bin/runtime", mode},
 	}
 	if mode == "validate" {
