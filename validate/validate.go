@@ -44,7 +44,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to unarchive: %w", err)
 	}
-	log.Info("Extracted archive", slog.Any("metrics", m))
+	log.Info("Extracted archive", slog.Int("files", m.Files), slog.Int("dirs", m.Dirs))
 
 	log.Info("Running build in airgapped container")
 
