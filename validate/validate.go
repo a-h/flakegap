@@ -27,7 +27,7 @@ func (a Args) Validate() error {
 		errs = append(errs, fmt.Errorf("source-path is required"))
 	}
 	if a.ExportFileName == "" {
-		errs = append(errs, fmt.Errorf("nix-export-path is required"))
+		errs = append(errs, fmt.Errorf("export-filename is required"))
 	}
 	return errors.Join(errs...)
 }

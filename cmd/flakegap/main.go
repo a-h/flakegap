@@ -28,17 +28,21 @@ func main() {
 		args := export.Args{}
 		cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)
 		cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
-		cmdFlags.StringVar(&args.ExportFileName, "target-path", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
+		cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
+		cmdFlags.StringVar(&args.ExportManifestFileName, "manifest-filename", "", "Filename to write the manifest to - defaults to <source-path>/nix-export.txt")
 		cmdFlags.Parse(os.Args[2:])
 		if args.ExportFileName == "" {
 			args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
+		}
+		if args.ExportManifestFileName == "" {
+			args.ExportManifestFileName = filepath.Join(args.Code, "nix-export.txt")
 		}
 		err = export.Run(ctx, log, args)
 	case "validate":
 		args := validate.Args{}
 		cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
 		cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
-		cmdFlags.StringVar(&args.ExportFileName, "nix-export-path", "", "Filename of the nix-export.tar.gz file, defaults to <source-path>/nix-export.tar.gz")
+		cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename of the nix-export.tar.gz file, defaults to <source-path>/nix-export.tar.gz")
 		cmdFlags.Parse(os.Args[2:])
 		if args.ExportFileName == "" {
 			args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
