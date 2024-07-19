@@ -1,0 +1,24 @@
+name: Build and push flakegap binary
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: "write"
+      contents: "read"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@v12
+      - uses: DeterminateSystems/magic-nix-cache-action@v7
+      - uses: DeterminateSystems/flake-checker-action@v8
+      - name: Run `nix build`
+        run: nix build .
+      - name: Upload assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: flakegap
+          path: result/bin/flakegap
