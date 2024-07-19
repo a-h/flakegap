@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -20,6 +21,16 @@ func Run(ctx context.Context, mode string, codePath, nixExportPath string) (err 
 	cli, err := client.NewClientWithOpts()
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
+	}
+
+	pull, err := cli.ImagePull(ctx, "ghcr.io/a-h/flakegap:main", image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to pull image: %w", err)
+	}
+	defer pull.Close()
+	_, err = io.Copy(os.Stdout, pull)
+	if err != nil {
+		return fmt.Errorf("failed to read image pull response: %w", err)
 	}
 
 	codePath, err = filepath.Abs(codePath)
