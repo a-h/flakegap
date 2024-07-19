@@ -63,9 +63,9 @@ Export Nix packages required to build a flake on an airgapped system.
 
 Usage:
 
-  flakegap export --source-path <path-to-flake-dir-on-disk>
+  flakegap export
     - Starts a container that runs required export commands.
 
-  flakegap validate --source-path <path-to-flake-dir-on-disk>
+  flakegap validate
     - Validates that the export worked by running a build in an airgapped container.`)
 }
