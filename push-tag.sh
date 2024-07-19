@@ -8,7 +8,7 @@ if ! git diff --quiet; then
   echo "Error: Working directory is not clean. Please commit the changes first.";
   exit 1;
 fi
-export VERSION="v0.0."`git rev-list main --count`
+export VERSION="0.0."`git rev-list main --count`
 echo Adding git tag with version v${VERSION};
 git tag v${VERSION};
 git push origin v${VERSION};
