@@ -87,6 +87,9 @@ func Run(ctx context.Context, mode string, codePath, nixExportPath string) (err 
 			if resp.Error != nil {
 				runErr = fmt.Errorf("container wait error: %v", resp.Error)
 			}
+			if resp.StatusCode != 0 {
+				runErr = fmt.Errorf("container exited with non-zero status: %d", resp.StatusCode)
+			}
 		case err := <-errChan:
 			runErr = fmt.Errorf("container wait error: %w", err)
 		case <-ctx.Done():
