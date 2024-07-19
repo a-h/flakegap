@@ -1,5 +1,6 @@
 .direnv
 # Ignore the exports created by the process.
+nix-export
 nix-export.tar.gz
 # Ignore build outputs.
 result
