@@ -49,28 +49,3 @@ func findDerivation(parents []string, m map[string]any) (matches []string) {
 	}
 	return matches
 }
-
-/*
-	{
-	  "packages": {
-	    "aarch64-darwin": {
-	      "default": {}
-	    },
-	    "aarch64-linux": {
-	      "default": {}
-	    },
-	    "x86_64-darwin": {
-	      "default": {}
-	    },
-	    "x86_64-linux": {
-	      "default": {
-	        "name": "github-runner-manager",
-	        "type": "derivation"
-	      }
-	    }
-	  },
-	  "vms": {
-	    "type": "unknown"
-	  }
-	}
-*/
