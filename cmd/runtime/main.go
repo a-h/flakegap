@@ -43,11 +43,21 @@ func run(log *slog.Logger, mode string) (err error) {
 	drvs := op.Derivations()
 
 	log.Info("Building", slog.Any("outputs", drvs))
+	var pathsToDelete []string
 	for _, ref := range drvs {
 		log.Info("Building", slog.String("ref", ref))
 		if err := nixcmd.Build(os.Stdout, os.Stderr, ref); err != nil {
 			return fmt.Errorf("failed to build %q: %w", ref, err)
 		}
+		path, err := nixcmd.PathInfo(os.Stdout, os.Stderr, ref)
+		if err != nil {
+			return fmt.Errorf("failed to get path info for %q: %w", ref, err)
+		}
+		pathsToDelete = append(pathsToDelete, path)
+	}
+	// Delete output paths.
+	if err := nixcmd.StoreDelete(os.Stdout, os.Stderr, pathsToDelete); err != nil {
+		return fmt.Errorf("failed to remove paths: %w", err)
 	}
 
 	if mode == "validate" {
