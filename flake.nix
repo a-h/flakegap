@@ -59,14 +59,13 @@
         xc.packages.${system}.xc
         gomod2nix.legacyPackages.${system}.gomod2nix
       ];
-
-      name = "flakegap";
     in
     {
       # `nix build` builds the app.
       # `nix build .#docker-image` builds the Docker container.
       packages = forAllSystems ({ system, pkgs }: {
-        default = app { name = name; pkgs = pkgs; system = system; };
+        default = app { name = "flakegap"; pkgs = pkgs; system = system; };
+        runtime = app { name = "runtime"; pkgs = pkgs; system = system; };
       });
       # `nix develop` provides a shell containing required tools.
       # Run `gomod2nix` to update the `gomod2nix.toml` file if Go dependencies change.
