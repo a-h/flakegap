@@ -10,13 +10,30 @@ import (
 
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
-	if err := run(log); err != nil {
+	mode := "export"
+	if len(os.Args) < 2 {
+		log.Info("No mode specified, defaulting to export")
+	}
+	if len(os.Args) >= 2 {
+		mode = os.Args[1]
+	}
+	if mode != "export" && mode != "validate" {
+		log.Error("Invalid mode, defaulting to export", slog.String("mode", mode))
+		mode = "export"
+	}
+	if err := run(log, mode); err != nil {
 		log.Error("fatal error", slog.Any("error", err))
 		os.Exit(1)
 	}
 }
 
-func run(log *slog.Logger) (err error) {
+func run(log *slog.Logger, mode string) (err error) {
+	if mode == "validate" {
+		if err = nixcmd.CopyFrom(os.Stdout, os.Stderr); err != nil {
+			return fmt.Errorf("failed to copy from /nix-export: %w", err)
+		}
+	}
+
 	log.Info("Gathering Nix outputs")
 	op, err := nixcmd.FlakeShow()
 	if err != nil {
@@ -32,8 +49,13 @@ func run(log *slog.Logger) (err error) {
 		}
 	}
 
+	if mode == "validate" {
+		log.Info("Complete")
+		return
+	}
+
 	log.Info("Copying store to output")
-	if err := nixcmd.Copy(os.Stdout, os.Stderr); err != nil {
+	if err := nixcmd.CopyTo(os.Stdout, os.Stderr); err != nil {
 		return fmt.Errorf("failed to copy: %w", err)
 	}
 

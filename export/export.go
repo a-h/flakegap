@@ -10,14 +10,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sync"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/a-h/flakegap/container"
 )
 
 type Args struct {
@@ -47,7 +41,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	defer os.RemoveAll(tgtPath)
 
-	if err = runContainer(ctx, args.SourcePath, tgtPath); err != nil {
+	if err = container.Run(ctx, "export", args.SourcePath, tgtPath); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
@@ -61,95 +55,6 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	return nil
 }
 
-func runContainer(ctx context.Context, srcPath, tgtPath string) (err error) {
-	cli, err := client.NewClientWithOpts()
-	if err != nil {
-		return fmt.Errorf("failed to create docker client: %w", err)
-	}
-
-	srcPath, err = filepath.Abs(srcPath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute source path: %w", err)
-	}
-	tgtPath, err = filepath.Abs(tgtPath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute target path: %w", err)
-	}
-
-	cconf := &container.Config{
-		Tty:          true,
-		AttachStdout: true,
-		AttachStderr: true,
-		Image:        "ghcr.io/a-h/flakegap:latest",
-	}
-	hconf := &container.HostConfig{
-		Mounts: []mount.Mount{
-			{
-				Type:   mount.TypeBind,
-				Source: srcPath,
-				Target: "/code",
-			},
-			{
-				Type:   mount.TypeBind,
-				Source: tgtPath,
-				Target: "/nix-export",
-			},
-		},
-	}
-	nconf := &network.NetworkingConfig{}
-	platform := &ocispec.Platform{}
-	var containerName string
-	cont, err := cli.ContainerCreate(ctx, cconf, hconf, nconf, platform, containerName)
-	if err != nil {
-		return fmt.Errorf("failed to create container: %w", err)
-	}
-
-	var wg sync.WaitGroup
-
-	// Wait for the container to finish and collect any errors.
-	var runErr, logErr error
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		respChan, errChan := cli.ContainerWait(ctx, cont.ID, container.WaitConditionNextExit)
-		select {
-		case resp := <-respChan:
-			if resp.Error != nil {
-				runErr = fmt.Errorf("container wait error: %v", resp.Error)
-			}
-		case err := <-errChan:
-			runErr = fmt.Errorf("container wait error: %w", err)
-		case <-ctx.Done():
-			runErr = fmt.Errorf("container wait cancelled")
-		}
-	}()
-
-	// Stream the logs.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		r, err := cli.ContainerLogs(ctx, cont.ID, container.LogsOptions{
-			ShowStdout: true,
-			ShowStderr: true,
-			Follow:     true,
-			Timestamps: false,
-		})
-		if err != nil {
-			logErr = fmt.Errorf("failed to get container logs: %w", err)
-		}
-		defer r.Close()
-		_, logErr = io.Copy(os.Stdout, r)
-	}()
-
-	if err := cli.ContainerStart(ctx, cont.ID, container.StartOptions{}); err != nil {
-		return fmt.Errorf("failed to start container: %w", err)
-	}
-
-	wg.Wait()
-
-	return errors.Join(runErr, logErr)
-}
-
 func archive(ctx context.Context, srcPath, tgtPath string) (err error) {
 	f, err := os.Create(tgtPath)
 	if err != nil {
@@ -161,8 +66,17 @@ func archive(ctx context.Context, srcPath, tgtPath string) (err error) {
 	tw := tar.NewWriter(zw)
 
 	filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		name, err := filepath.Rel(srcPath, path)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path: %w", err)
+		}
+
 		hdr := &tar.Header{
-			Name:     path,
+			Name:     name,
 			Size:     info.Size(),
 			Typeflag: tar.TypeReg,
 			Mode:     0644,
