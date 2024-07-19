@@ -25,6 +25,7 @@ func main() {
 		log.Error("fatal error", slog.Any("error", err))
 		os.Exit(1)
 	}
+	log.Info("Runtime complete")
 }
 
 func run(log *slog.Logger, mode string) (err error) {
@@ -50,7 +51,6 @@ func run(log *slog.Logger, mode string) (err error) {
 	}
 
 	if mode == "validate" {
-		log.Info("Complete")
 		return
 	}
 
@@ -63,8 +63,6 @@ func run(log *slog.Logger, mode string) (err error) {
 	if err := nixcmd.FlakeArchive(os.Stdout, os.Stderr); err != nil {
 		return fmt.Errorf("failed to archive flake: %w", err)
 	}
-
-	log.Info("Complete")
 
 	return nil
 }

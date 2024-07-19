@@ -15,18 +15,18 @@ import (
 )
 
 type Args struct {
-	// SourcePath to the repo on disk that contains a flake.nix file.
-	SourcePath string
-	// NixExportPath is the path to the `nix-export.tar.gz` file created by the export command.
-	NixExportPath string
+	// Code is the path to the repo on disk that contains a flake.nix file.
+	Code string
+	// ExportFileName is the path to the `nix-export.tar.gz` file created by the export command.
+	ExportFileName string
 }
 
 func (a Args) Validate() error {
 	var errs []error
-	if a.SourcePath == "" {
+	if a.Code == "" {
 		errs = append(errs, fmt.Errorf("source-path is required"))
 	}
-	if a.NixExportPath == "" {
+	if a.ExportFileName == "" {
 		errs = append(errs, fmt.Errorf("nix-export-path is required"))
 	}
 	return errors.Join(errs...)
@@ -40,13 +40,15 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tgtPath)
-	if err = unarchive(ctx, args.NixExportPath, tgtPath); err != nil {
+	m, err := unarchive(ctx, args.ExportFileName, tgtPath)
+	if err != nil {
 		return fmt.Errorf("failed to unarchive: %w", err)
 	}
+	log.Info("Extracted archive", slog.Any("metrics", m))
 
 	log.Info("Running build in airgapped container")
 
-	if err = container.Run(ctx, "validate", args.SourcePath, tgtPath); err != nil {
+	if err = container.Run(ctx, "validate", args.Code, tgtPath); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
@@ -54,16 +56,21 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	return nil
 }
 
-func unarchive(ctx context.Context, src, dst string) (err error) {
+type Metrics struct {
+	Files int
+	Dirs  int
+}
+
+func unarchive(ctx context.Context, src, dst string) (m Metrics, err error) {
 	file, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("failed to open .tar.gz file %q: %w", src, err)
+		return m, fmt.Errorf("failed to open .tar.gz file %q: %w", src, err)
 	}
 	defer file.Close()
 
 	gzipReader, err := gzip.NewReader(file)
 	if err != nil {
-		return err
+		return m, err
 	}
 	defer gzipReader.Close()
 
@@ -74,34 +81,36 @@ func unarchive(ctx context.Context, src, dst string) (err error) {
 			break
 		}
 		if err != nil {
-			return err
+			return m, err
 		}
 
 		target := filepath.Join(dst, header.Name)
 		switch header.Typeflag {
 		case tar.TypeDir:
+			m.Dirs++
 			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
-				return err
+				return m, err
 			}
 		case tar.TypeReg:
+			m.Files++
 			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
-				return err
+				return m, err
 			}
 			outFile, err := os.Create(target)
 			if err != nil {
-				return err
+				return m, err
 			}
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				outFile.Close()
-				return err
+				return m, err
 			}
 			outFile.Close()
 			if err := os.Chmod(target, os.FileMode(header.Mode)); err != nil {
-				return err
+				return m, err
 			}
 		default:
-			return fmt.Errorf("unknown type: %v in %s", header.Typeflag, header.Name)
+			return m, fmt.Errorf("unknown type: %v in %s", header.Typeflag, header.Name)
 		}
 	}
-	return nil
+	return m, nil
 }

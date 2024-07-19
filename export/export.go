@@ -15,18 +15,18 @@ import (
 )
 
 type Args struct {
-	// SourcePath to the repo on disk that contains a flake.nix file.
-	SourcePath string
-	// TargetPath is the path to write the output to.
-	TargetPath string
+	// Code is the path to the repo on disk that contains a flake.nix file.
+	Code string
+	// ExportFileName is the path to write the output to, e.g. /tmp/nix-export.tar.gz.
+	ExportFileName string
 }
 
 func (a Args) Validate() error {
 	var errs []error
-	if a.SourcePath == "" {
+	if a.Code == "" {
 		errs = append(errs, fmt.Errorf("source-path is required"))
 	}
-	if a.TargetPath == "" {
+	if a.ExportFileName == "" {
 		errs = append(errs, fmt.Errorf("target-path is required"))
 	}
 	return errors.Join(errs...)
@@ -41,13 +41,12 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	defer os.RemoveAll(tgtPath)
 
-	if err = container.Run(ctx, "export", args.SourcePath, tgtPath); err != nil {
+	if err = container.Run(ctx, "export", args.Code, tgtPath); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
 	log.Info("Collecting output")
-	archivePath := filepath.Join(args.TargetPath, "nix-export.tar.gz")
-	if err = archive(ctx, tgtPath, archivePath); err != nil {
+	if err = archive(ctx, tgtPath, args.ExportFileName); err != nil {
 		return fmt.Errorf("failed to archive: %w", err)
 	}
 
