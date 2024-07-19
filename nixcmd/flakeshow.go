@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
-func FlakeShow() (op FlakeOutputs, err error) {
+func FlakeShow() (op FlakeShowOutput, err error) {
 	nixPath, err := exec.LookPath("nix")
 	if err != nil {
 		return op, fmt.Errorf("failed to find nix on path: %v", err)
@@ -27,72 +28,49 @@ func FlakeShow() (op FlakeOutputs, err error) {
 	return op, err
 }
 
-type FlakeOutputs map[string]ArchitectureToNameToOutput
+type FlakeShowOutput map[string]any
 
-func (fo FlakeOutputs) Derivations() (derivations []string) {
-	for firstLevelName, architecture := range fo {
-		for architectureName, output := range architecture {
-			for outputName, outputDetails := range output {
-				if outputDetails.Type == "derivation" {
-					derivations = append(derivations, fmt.Sprintf(".#%s.%s.%s", firstLevelName, architectureName, outputName))
-				}
+func (fso FlakeShowOutput) Derivations() (matches []string) {
+	return findDerivation([]string{}, fso)
+}
+
+func findDerivation(parents []string, m map[string]any) (matches []string) {
+	for k, v := range m {
+		if k == "type" && v == "derivation" {
+			matches = append(matches, ".#"+strings.Join(parents, "."))
+			continue
+		}
+		parents := append([]string{}, append(parents, k)...)
+		if m, ok := v.(map[string]any); ok {
+			if children := findDerivation(parents, m); len(children) > 0 {
+				matches = append(matches, children...)
 			}
 		}
 	}
-	return derivations
-}
-
-type ArchitectureToNameToOutput map[string]NameToOutput
-
-type NameToOutput map[string]Output
-
-type Output struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	return matches
 }
 
 /*
-{
-  "devShells": {
-    "aarch64-darwin": {
-      "default": {}
-    },
-    "aarch64-linux": {
-      "default": {}
-    },
-    "x86_64-darwin": {
-      "default": {}
-    },
-    "x86_64-linux": {
-      "default": {
-        "name": "nix-shell",
-        "type": "derivation"
-      }
-    }
-  },
-  "packages": {
-    "aarch64-darwin": {
-      "default": {},
-      "docker-image": {}
-    },
-    "aarch64-linux": {
-      "default": {},
-      "docker-image": {}
-    },
-    "x86_64-darwin": {
-      "default": {},
-      "docker-image": {}
-    },
-    "x86_64-linux": {
-      "default": {
-        "name": "app",
-        "type": "derivation"
-      },
-      "docker-image": {
-        "name": "docker-image-app.tar.gz",
-        "type": "derivation"
-      }
-    }
-  }
-}
+	{
+	  "packages": {
+	    "aarch64-darwin": {
+	      "default": {}
+	    },
+	    "aarch64-linux": {
+	      "default": {}
+	    },
+	    "x86_64-darwin": {
+	      "default": {}
+	    },
+	    "x86_64-linux": {
+	      "default": {
+	        "name": "github-runner-manager",
+	        "type": "derivation"
+	      }
+	    }
+	  },
+	  "vms": {
+	    "type": "unknown"
+	  }
+	}
 */

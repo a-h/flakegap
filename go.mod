@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/docker/docker v27.0.3+incompatible
+	github.com/google/go-cmp v0.6.0
 	github.com/nix-community/go-nix v0.0.0-20231219074122-93cb24a86856
 	github.com/opencontainers/image-spec v1.1.0
 )
