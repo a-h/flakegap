@@ -2,7 +2,9 @@ name: Build and push flakegap binary
 
 on:
   push:
-    branches: ['main']
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   check:
@@ -10,15 +12,21 @@ jobs:
     permissions:
       id-token: "write"
       contents: "read"
+      packages: "write"
     steps:
       - uses: actions/checkout@v4
+
       - uses: DeterminateSystems/nix-installer-action@v12
+
       - uses: DeterminateSystems/magic-nix-cache-action@v7
+
       - uses: DeterminateSystems/flake-checker-action@v8
+
       - name: Run `nix build`
         run: nix build .
-      - name: Upload assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: flakegap
-          path: result/bin/flakegap
+
+      - name: Create release
+        run: gh release create ${{ github.ref_name }} --generate-notes
+
+      - name: Upload
+        run: gh release upload ${{ github.ref_name }} result/bin/flakegap --clobber
