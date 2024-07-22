@@ -32,31 +32,9 @@ func main() {
 	case "version":
 		fmt.Println(version)
 	case "export":
-		args := export.Args{}
-		cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)
-		cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
-		cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
-		cmdFlags.StringVar(&args.ExportManifestFileName, "manifest-filename", "", "Filename to write the manifest to - defaults to <source-path>/nix-export.txt")
-		cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
-		cmdFlags.Parse(os.Args[2:])
-		if args.ExportFileName == "" {
-			args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
-		}
-		if args.ExportManifestFileName == "" {
-			args.ExportManifestFileName = filepath.Join(args.Code, "nix-export.txt")
-		}
-		err = export.Run(ctx, log, args)
+		err = exportCmd(ctx, log)
 	case "validate":
-		args := validate.Args{}
-		cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
-		cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
-		cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename of the nix-export.tar.gz file, defaults to <source-path>/nix-export.tar.gz")
-		cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
-		cmdFlags.Parse(os.Args[2:])
-		if args.ExportFileName == "" {
-			args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
-		}
-		err = validate.Run(ctx, log, args)
+		err = validateCmd(ctx, log)
 	default:
 		fmt.Println("flakegap: unknown command")
 		fmt.Println()
@@ -67,6 +45,36 @@ func main() {
 		log.Error("error", slog.Any("error", err))
 		os.Exit(1)
 	}
+}
+
+func exportCmd(ctx context.Context, log *slog.Logger) error {
+	args := export.Args{}
+	cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)
+	cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
+	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
+	cmdFlags.StringVar(&args.ExportManifestFileName, "manifest-filename", "", "Filename to write the manifest to - defaults to <source-path>/nix-export.txt")
+	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
+	cmdFlags.Parse(os.Args[2:])
+	if args.ExportFileName == "" {
+		args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
+	}
+	if args.ExportManifestFileName == "" {
+		args.ExportManifestFileName = filepath.Join(args.Code, "nix-export.txt")
+	}
+	return export.Run(ctx, log, args)
+}
+
+func validateCmd(ctx context.Context, log *slog.Logger) error {
+	args := validate.Args{}
+	cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
+	cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
+	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename of the nix-export.tar.gz file, defaults to <source-path>/nix-export.tar.gz")
+	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
+	cmdFlags.Parse(os.Args[2:])
+	if args.ExportFileName == "" {
+		args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
+	}
+	return validate.Run(ctx, log, args)
 }
 
 func printUsage() {
