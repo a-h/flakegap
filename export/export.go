@@ -22,7 +22,7 @@ type Args struct {
 	ExportFileName string
 	// ExportManifestFileName is the path to write the manifest to, e.g. /tmp/nix-export.txt
 	ExportManifestFileName string
-	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:main.
+	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
 	Image string
 }
 

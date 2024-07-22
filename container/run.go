@@ -46,7 +46,7 @@ func Run(ctx context.Context, imageRef, mode, codePath, nixExportPath string) (e
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
-		Image:        "ghcr.io/a-h/flakegap:main",
+		Image:        imageRef,
 		Entrypoint:   []string{"/usr/local/bin/runtime", mode},
 	}
 	if mode == "validate" {

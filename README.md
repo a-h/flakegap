@@ -49,7 +49,7 @@ If you want to test it manually, you can run the Docker container interactively 
 ```bash
 mkdir nix-export
 tar -xzf nix-export.tar.gz --directory ./nix-export
-docker run -it --rm --network none -v $PWD:/code:Z -v $PWD/nix-export:/nix-export --entrypoint=/bin/bash ghcr.io/a-h/flakegap:main
+docker run -it --rm --network none -v $PWD:/code:Z -v $PWD/nix-export:/nix-export --entrypoint=/bin/bash ghcr.io/a-h/flakegap:latest
 ```
 
 Inside the container, the default working directory is the `/code` directory.
@@ -89,11 +89,11 @@ nix develop
 ### docker-build
 
 ```bash
-docker build -t ghcr.io/a-h/flakegap:main .
+docker build -t ghcr.io/a-h/flakegap:latest .
 ```
 
 ### docker-run
 
 ```bash
-docker run -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:main
+docker run -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:latest
 ```

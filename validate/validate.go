@@ -19,7 +19,7 @@ type Args struct {
 	Code string
 	// ExportFileName is the path to the `nix-export.tar.gz` file created by the export command.
 	ExportFileName string
-	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:main.
+	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
 	Image string
 }
 
