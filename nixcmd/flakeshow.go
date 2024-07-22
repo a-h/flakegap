@@ -15,14 +15,14 @@ func FlakeShow() (op FlakeShowOutput, err error) {
 
 	cmd := exec.Command(nixPath, "flake", "show", "--json")
 	cmd.Dir = "/code"
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return op, fmt.Errorf("failed to run nix: %v", err)
+		return op, NewCommandError("failed to run nix flake show", err, string(output))
 	}
 
 	err = json.Unmarshal(output, &op)
 	if err != nil {
-		return op, fmt.Errorf("failed to parse nix output %q: %v", string(output), err)
+		return op, NewCommandError("failed to parse nix flake show output", err, string(output))
 	}
 
 	return op, err

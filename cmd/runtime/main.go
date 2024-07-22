@@ -24,7 +24,7 @@ func main() {
 		mode = os.Args[1]
 	}
 	if mode != "export" && mode != "validate" {
-		log.Error("Invalid mode, defaulting to export", slog.String("mode", mode))
+		log.Warn("Invalid mode, defaulting to export", slog.String("mode", mode))
 		mode = "export"
 	}
 	if err := run(log, mode); err != nil {
@@ -38,6 +38,7 @@ func run(log *slog.Logger, mode string) (err error) {
 	if mode == "validate" {
 		// nix copy --all --offline --impure --no-check-sigs --from file:///nix-export/
 		if err = nixcmd.CopyFrom(os.Stdout, os.Stderr); err != nil {
+			log.Error("failed to copy from /nix-export", slog.Any("error", err))
 			return fmt.Errorf("failed to copy from /nix-export: %w", err)
 		}
 	}
@@ -46,6 +47,7 @@ func run(log *slog.Logger, mode string) (err error) {
 	// nix flake show --json
 	op, err := nixcmd.FlakeShow()
 	if err != nil {
+		log.Error("failed to gather nix outputs", slog.Any("error", err))
 		return err
 	}
 	drvs := op.Derivations()
@@ -56,11 +58,13 @@ func run(log *slog.Logger, mode string) (err error) {
 		log.Info("Building", slog.String("ref", ref))
 		// ALLOW_UNFREE=1 nix build --no-link --impure <ref>
 		if err := nixcmd.Build(os.Stdout, os.Stderr, ref); err != nil {
+			log.Error("failed to build", slog.String("ref", ref), slog.Any("error", err))
 			return fmt.Errorf("failed to build %q: %w", ref, err)
 		}
 		// nix path-info --json <ref>
 		path, err := nixcmd.PathInfo(os.Stdout, os.Stderr, ref)
 		if err != nil {
+			log.Error("failed to get path info", slog.String("ref", ref), slog.Any("error", err))
 			return fmt.Errorf("failed to get path info for %q: %w", ref, err)
 		}
 		pathsToDelete = append(pathsToDelete, path)
@@ -68,6 +72,7 @@ func run(log *slog.Logger, mode string) (err error) {
 	// Delete output paths.
 	// nix store delete <path> <path> <path>
 	if err := nixcmd.StoreDelete(os.Stdout, os.Stderr, pathsToDelete); err != nil {
+		log.Error("failed to remove paths", slog.Any("error", err))
 		return fmt.Errorf("failed to remove paths: %w", err)
 	}
 
@@ -78,12 +83,14 @@ func run(log *slog.Logger, mode string) (err error) {
 	log.Info("Copying store to output")
 	// nix copy --derivation --to file:///nix-export/ --all
 	if err := nixcmd.CopyTo(os.Stdout, os.Stderr); err != nil {
+		log.Error("failed to copy", slog.Any("error", err))
 		return fmt.Errorf("failed to copy: %w", err)
 	}
 
 	log.Info("Copying flake archive to output")
 	// nix flake archive --to file:///nix-export/
 	if err := nixcmd.FlakeArchive(os.Stdout, os.Stderr); err != nil {
+		log.Error("failed to archive flake", slog.Any("error", err))
 		return fmt.Errorf("failed to archive flake: %w", err)
 	}
 
