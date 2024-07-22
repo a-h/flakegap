@@ -37,6 +37,7 @@ func main() {
 		cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
 		cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
 		cmdFlags.StringVar(&args.ExportManifestFileName, "manifest-filename", "", "Filename to write the manifest to - defaults to <source-path>/nix-export.txt")
+		cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:main", "Image to run")
 		cmdFlags.Parse(os.Args[2:])
 		if args.ExportFileName == "" {
 			args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
@@ -50,6 +51,7 @@ func main() {
 		cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
 		cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
 		cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename of the nix-export.tar.gz file, defaults to <source-path>/nix-export.tar.gz")
+		cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:main", "Image to run")
 		cmdFlags.Parse(os.Args[2:])
 		if args.ExportFileName == "" {
 			args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")

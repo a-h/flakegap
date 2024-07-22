@@ -22,6 +22,8 @@ type Args struct {
 	ExportFileName string
 	// ExportManifestFileName is the path to write the manifest to, e.g. /tmp/nix-export.txt
 	ExportManifestFileName string
+	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:main.
+	Image string
 }
 
 func (a Args) Validate() error {
@@ -35,6 +37,9 @@ func (a Args) Validate() error {
 	if a.ExportManifestFileName == "" {
 		errs = append(errs, fmt.Errorf("manifest-filename is required"))
 	}
+	if a.Image == "" {
+		errs = append(errs, fmt.Errorf("image is required"))
+	}
 	return errors.Join(errs...)
 }
 
@@ -47,7 +52,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	defer os.RemoveAll(nixExportPath)
 
-	if err = container.Run(ctx, "export", args.Code, nixExportPath); err != nil {
+	if err = container.Run(ctx, args.Image, "export", args.Code, nixExportPath); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 

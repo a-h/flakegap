@@ -17,13 +17,13 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func Run(ctx context.Context, mode string, codePath, nixExportPath string) (err error) {
+func Run(ctx context.Context, imageRef, mode, codePath, nixExportPath string) (err error) {
 	cli, err := client.NewClientWithOpts()
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	pull, err := cli.ImagePull(ctx, "ghcr.io/a-h/flakegap:main", image.PullOptions{})
+	pull, err := cli.ImagePull(ctx, imageRef, image.PullOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to pull image: %w", err)
 	}

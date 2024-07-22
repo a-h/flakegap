@@ -19,6 +19,8 @@ type Args struct {
 	Code string
 	// ExportFileName is the path to the `nix-export.tar.gz` file created by the export command.
 	ExportFileName string
+	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:main.
+	Image string
 }
 
 func (a Args) Validate() error {
@@ -28,6 +30,9 @@ func (a Args) Validate() error {
 	}
 	if a.ExportFileName == "" {
 		errs = append(errs, fmt.Errorf("export-filename is required"))
+	}
+	if a.Image == "" {
+		errs = append(errs, fmt.Errorf("image is required"))
 	}
 	return errors.Join(errs...)
 }
@@ -48,7 +53,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 
 	log.Info("Running build in airgapped container")
 
-	if err = container.Run(ctx, "validate", args.Code, tgtPath); err != nil {
+	if err = container.Run(ctx, args.Image, "validate", args.Code, tgtPath); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
