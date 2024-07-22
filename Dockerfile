@@ -9,7 +9,7 @@ RUN go mod download
 
 COPY . ./
 
-RUN CGO_ENABLED=0 go build ./cmd/runtime
+RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty)" ./cmd/runtime
 
 FROM ubuntu:latest
 
