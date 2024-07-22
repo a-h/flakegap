@@ -12,9 +12,14 @@ import (
 	"github.com/a-h/flakegap/validate"
 )
 
+var version string
+
 func main() {
 	ctx := context.Background()
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+
+	log = log.With(slog.String("version", version))
+	log = log.With(slog.String("flakegap", "client"))
 
 	if len(os.Args) < 2 {
 		printUsage()
@@ -24,6 +29,8 @@ func main() {
 	var err error
 
 	switch os.Args[1] {
+	case "version":
+		fmt.Println(version)
 	case "export":
 		args := export.Args{}
 		cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)

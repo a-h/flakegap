@@ -32,7 +32,7 @@
       });
 
       # Build app.
-      app = { name, pkgs, system }: gomod2nix.legacyPackages.${system}.buildGoApplication {
+      app = { name, pkgs, system, version }: gomod2nix.legacyPackages.${system}.buildGoApplication {
         name = name;
         src = gitignore.lib.gitignoreSource ./.;
         go = pkgs.go;
@@ -47,6 +47,7 @@
           "-s"
           "-w"
           "-extldflags -static"
+          "-X main.version=${version}"
         ];
       };
 
@@ -64,8 +65,8 @@
       # `nix build` builds the app.
       # `nix build .#docker-image` builds the Docker container.
       packages = forAllSystems ({ system, pkgs }: {
-        default = app { name = "flakegap"; pkgs = pkgs; system = system; };
-        runtime = app { name = "runtime"; pkgs = pkgs; system = system; };
+        default = app { name = "flakegap"; pkgs = pkgs; system = system; version = self.sourceInfo.lastModifiedDate; };
+        runtime = app { name = "runtime"; pkgs = pkgs; system = system; version = self.sourceInfo.lastModifiedDate; };
       });
       # `nix develop` provides a shell containing required tools.
       # Run `gomod2nix` to update the `gomod2nix.toml` file if Go dependencies change.

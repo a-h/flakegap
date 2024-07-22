@@ -8,8 +8,14 @@ import (
 	"github.com/a-h/flakegap/nixcmd"
 )
 
+var version string
+
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+
+	log = log.With(slog.String("version", version))
+	log = log.With(slog.String("flakegap", "server"))
+
 	mode := "export"
 	if len(os.Args) < 2 {
 		log.Info("No mode specified, defaulting to export")
@@ -30,12 +36,14 @@ func main() {
 
 func run(log *slog.Logger, mode string) (err error) {
 	if mode == "validate" {
+		// nix copy --all --offline --impure --no-check-sigs --from file:///nix-export/
 		if err = nixcmd.CopyFrom(os.Stdout, os.Stderr); err != nil {
 			return fmt.Errorf("failed to copy from /nix-export: %w", err)
 		}
 	}
 
 	log.Info("Gathering Nix outputs")
+	// nix flake show --json
 	op, err := nixcmd.FlakeShow()
 	if err != nil {
 		return err
@@ -46,9 +54,11 @@ func run(log *slog.Logger, mode string) (err error) {
 	var pathsToDelete []string
 	for _, ref := range drvs {
 		log.Info("Building", slog.String("ref", ref))
+		// nix build --no-link <ref>
 		if err := nixcmd.Build(os.Stdout, os.Stderr, ref); err != nil {
 			return fmt.Errorf("failed to build %q: %w", ref, err)
 		}
+		// nix path-info --json <ref>
 		path, err := nixcmd.PathInfo(os.Stdout, os.Stderr, ref)
 		if err != nil {
 			return fmt.Errorf("failed to get path info for %q: %w", ref, err)
@@ -56,6 +66,7 @@ func run(log *slog.Logger, mode string) (err error) {
 		pathsToDelete = append(pathsToDelete, path)
 	}
 	// Delete output paths.
+	// nix store delete <path> <path> <path>
 	if err := nixcmd.StoreDelete(os.Stdout, os.Stderr, pathsToDelete); err != nil {
 		return fmt.Errorf("failed to remove paths: %w", err)
 	}
@@ -65,11 +76,13 @@ func run(log *slog.Logger, mode string) (err error) {
 	}
 
 	log.Info("Copying store to output")
+	// nix copy --derivation --to file:///nix-export/ --all
 	if err := nixcmd.CopyTo(os.Stdout, os.Stderr); err != nil {
 		return fmt.Errorf("failed to copy: %w", err)
 	}
 
 	log.Info("Copying flake archive to output")
+	// nix flake archive --to file:///nix-export/
 	if err := nixcmd.FlakeArchive(os.Stdout, os.Stderr); err != nil {
 		return fmt.Errorf("failed to archive flake: %w", err)
 	}
