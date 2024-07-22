@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,20 +18,14 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func Run(ctx context.Context, imageRef, mode, codePath, nixExportPath string) (err error) {
+func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExportPath string) (err error) {
 	cli, err := client.NewClientWithOpts()
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	pull, err := cli.ImagePull(ctx, imageRef, image.PullOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to pull image: %w", err)
-	}
-	defer pull.Close()
-	_, err = io.Copy(os.Stdout, pull)
-	if err != nil {
-		return fmt.Errorf("failed to read image pull response: %w", err)
+	if err := pullImage(ctx, cli, imageRef); err != nil {
+		log.Warn("failed to pull image", slog.String("image", imageRef), slog.Any("error", err))
 	}
 
 	codePath, err = filepath.Abs(codePath)
@@ -121,4 +116,17 @@ func Run(ctx context.Context, imageRef, mode, codePath, nixExportPath string) (e
 	wg.Wait()
 
 	return errors.Join(runErr, logErr)
+}
+
+func pullImage(ctx context.Context, cli *client.Client, imageRef string) (err error) {
+	pull, err := cli.ImagePull(ctx, imageRef, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to pull image: %w", err)
+	}
+	defer pull.Close()
+	_, err = io.Copy(os.Stdout, pull)
+	if err != nil {
+		return fmt.Errorf("failed to read image pull response: %w", err)
+	}
+	return nil
 }

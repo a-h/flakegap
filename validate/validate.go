@@ -53,7 +53,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 
 	log.Info("Running build in airgapped container")
 
-	if err = container.Run(ctx, args.Image, "validate", args.Code, tgtPath); err != nil {
+	if err = container.Run(ctx, log, args.Image, "validate", args.Code, tgtPath); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 

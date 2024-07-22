@@ -52,7 +52,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	defer os.RemoveAll(nixExportPath)
 
-	if err = container.Run(ctx, args.Image, "export", args.Code, nixExportPath); err != nil {
+	if err = container.Run(ctx, log, args.Image, "export", args.Code, nixExportPath); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 

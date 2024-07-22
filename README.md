@@ -90,6 +90,7 @@ nix develop
 
 ```bash
 docker build -t ghcr.io/a-h/flakegap:latest .
+docker image tag ghcr.io/a-h/flakegap:latest ghcr.io/a-h/flakegap:local
 ```
 
 ### docker-run

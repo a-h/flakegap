@@ -54,7 +54,7 @@ func run(log *slog.Logger, mode string) (err error) {
 	var pathsToDelete []string
 	for _, ref := range drvs {
 		log.Info("Building", slog.String("ref", ref))
-		// nix build --no-link <ref>
+		// ALLOW_UNFREE=1 nix build --no-link --impure <ref>
 		if err := nixcmd.Build(os.Stdout, os.Stderr, ref); err != nil {
 			return fmt.Errorf("failed to build %q: %w", ref, err)
 		}
