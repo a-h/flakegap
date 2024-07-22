@@ -26,6 +26,9 @@ RUN curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/
   --no-confirm
 ENV PATH="${PATH}:/nix/var/nix/profiles/default/bin"
 
+# Enable kvm in Nix.
+RUN echo "system-features = nixos-test benchmark big-parallel kvm" >> /etc/nix/nix.conf
+
 # Expect code to be mounted in the code directory.
 WORKDIR /code
 # Configure git not to prevent git operations in the /code directory, since this is
