@@ -16,10 +16,8 @@ func PathInfo(stdout, stderr io.Writer, ref string) (path string, err error) {
 
 	stdoutBuffer := new(bytes.Buffer)
 
-	cmd := exec.Command(nixPath, "path-info", "--json", ref)
-	// NIXPKGS_ALLOW_UNFREE is required for nix to build unfree packages such as Terraform.
-	// HOME is required for git to find the user's global gitconfig.
-	cmd.Env = append(cmd.Env, "NIXPKGS_ALLOW_UNFREE=1", "HOME=/root")
+	cmd := exec.Command(nixPath, "path-info", "--impure", "--json", ref)
+	cmd.Env = getEnv()
 	cmd.Stdout = io.MultiWriter(stdoutBuffer, stdout)
 	cmd.Stderr = stderr
 	cmd.Dir = "/code"

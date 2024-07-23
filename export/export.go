@@ -8,10 +8,15 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/a-h/flakegap/container"
+	"github.com/a-h/flakegap/nixcmd"
 	"github.com/nix-community/go-nix/pkg/narinfo"
 )
 
@@ -24,6 +29,8 @@ type Args struct {
 	ExportManifestFileName string
 	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
 	Image string
+	// BinaryCacheAddr is the listen address of the binary cache to use, defaults to localhost:41805
+	BinaryCacheAddr string
 }
 
 func (a Args) Validate() error {
@@ -40,14 +47,58 @@ func (a Args) Validate() error {
 	if a.Image == "" {
 		errs = append(errs, fmt.Errorf("image is required"))
 	}
+	if a.BinaryCacheAddr == "" {
+		errs = append(errs, fmt.Errorf("binary-cache-addr is required"))
+	}
 	return errors.Join(errs...)
 }
 
 func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
-	//TODO: Run a local binary cache: nix run nixpkgs#nix-serve -- -p 8080
-	//TODO: Run the docker container with `--network host` to enable connection back to localhost.
-	//TODO: e.g. docker run -it --rm --network host -v $PWD:/code:Z -v $PWD/nix-export:/nix-export --entrypoint=/bin/bash ghcr.io/a-h/flakegap:local
-	//TODO: Update the build command to use a local substituter: nix build --substituters 'http://localhost:8080/?trusted=1 https://cache.nixos.org/'
+	var wg sync.WaitGroup
+
+	log.Info("Starting binary cache")
+
+	binaryCacheURL := (&url.URL{
+		Scheme:   "http",
+		Host:     args.BinaryCacheAddr,
+		RawQuery: "trusted=1",
+	}).String()
+
+	wg.Add(1)
+	binaryCacheShutdown := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		cmd, err := nixcmd.Run(ctx, os.Stdout, os.Stderr, "github:NixOS/nixpkgs/nixos-24.05#nix-serve", "--", "-l", args.BinaryCacheAddr)
+		if err != nil {
+			log.Error("Failed to start binary cache", slog.Any("error", err))
+			return
+		}
+		<-binaryCacheShutdown
+		if err = cmd.Cancel(); err != nil {
+			log.Error("Failed to stop binary cache", slog.Any("error", err))
+			if err = cmd.Process.Kill(); err != nil {
+				log.Error("Failed to kill binary cache", slog.Any("error", err))
+			}
+		}
+	}()
+
+	log.Info("Waiting for binary cache to start...")
+
+loop:
+	for i := 0; i < 120; i++ {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled")
+		case <-time.After(1 * time.Second):
+			_, err := http.Get(binaryCacheURL)
+			if err != nil {
+				log.Info("Binary cache not ready", slog.Any("error", err))
+				continue loop
+			}
+			log.Info("Binary cache ready")
+			break loop
+		}
+	}
 
 	log.Info("Running container")
 
@@ -57,7 +108,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	defer os.RemoveAll(nixExportPath)
 
-	if err = container.Run(ctx, log, args.Image, "export", args.Code, nixExportPath); err != nil {
+	if err = container.Run(ctx, log, args.Image, "export", args.Code, nixExportPath, binaryCacheURL); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
@@ -70,6 +121,10 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	if err = archive(ctx, nixExportPath, args.ExportFileName); err != nil {
 		return fmt.Errorf("failed to archive: %w", err)
 	}
+
+	log.Info("Shutting down binary cache")
+	close(binaryCacheShutdown)
+	wg.Wait()
 
 	log.Info("Complete")
 	return nil

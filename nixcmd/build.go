@@ -4,18 +4,25 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 )
 
-func Build(stdout, stderr io.Writer, ref string) (err error) {
+func Build(stdout, stderr io.Writer, ref string, substituters []string) error {
 	nixPath, err := exec.LookPath("nix")
 	if err != nil {
 		return fmt.Errorf("failed to find nix on path: %v", err)
 	}
 
-	cmd := exec.Command(nixPath, "build", "--no-link", "--impure", ref)
-	// NIXPKGS_ALLOW_UNFREE is required for nix to build unfree packages such as Terraform.
-	// HOME is required for git to find the user's global gitconfig.
-	cmd.Env = append(cmd.Env, "NIXPKGS_ALLOW_UNFREE=1", "HOME=/root")
+	// Build args.
+	cmdArgs := []string{"build", "--no-link", "--impure"}
+	if len(substituters) > 0 {
+		cmdArgs = append(cmdArgs, "--substituters", strings.Join(substituters, " "))
+	}
+	cmdArgs = append(cmdArgs, ref)
+
+	// Execute.
+	cmd := exec.Command(nixPath, cmdArgs...)
+	cmd.Env = getEnv()
 	cmd.Dir = "/code"
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout

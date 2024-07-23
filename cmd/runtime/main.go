@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -27,15 +28,32 @@ func main() {
 		log.Warn("Invalid mode, defaulting to export", slog.String("mode", mode))
 		mode = "export"
 	}
-	if err := run(log, mode); err != nil {
+
+	var substituter string
+	cmdFlags := flag.NewFlagSet("runtime", flag.ContinueOnError)
+	cmdFlags.StringVar(&substituter, "substituter", "", "Substituter to use")
+	cmdFlags.Parse(os.Args[2:])
+
+	if err := run(log, mode, substituter); err != nil {
 		log.Error("fatal error", slog.Any("error", err))
 		os.Exit(1)
 	}
 	log.Info("Runtime complete")
 }
 
-func run(log *slog.Logger, mode string) (err error) {
+func run(log *slog.Logger, mode string, substituter string) (err error) {
+	var substituters []string
+	if mode == "export" {
+		if substituter == "" {
+			log.Warn("No binary cache specified, downloading all dependencies")
+			substituters = []string{"https://cache.nixos.org/"}
+		} else {
+			log.Info("Using binary cache", slog.String("substituter", substituter))
+			substituters = []string{substituter, "https://cache.nixos.org/"}
+		}
+	}
 	if mode == "validate" {
+		log.Info("Restoring Nix store from export")
 		// nix copy --all --offline --impure --no-check-sigs --from file:///nix-export/
 		if err = nixcmd.CopyFrom(os.Stdout, os.Stderr); err != nil {
 			return fmt.Errorf("failed to copy from /nix-export: %w", err)
@@ -55,7 +73,7 @@ func run(log *slog.Logger, mode string) (err error) {
 	for _, ref := range drvs {
 		log.Info("Building", slog.String("ref", ref))
 		// ALLOW_UNFREE=1 nix build --no-link --impure <ref>
-		if err := nixcmd.Build(os.Stdout, os.Stderr, ref); err != nil {
+		if err := nixcmd.Build(os.Stdout, os.Stderr, ref, substituters); err != nil {
 			log.Error("failed to build", slog.String("ref", ref), slog.Any("error", err))
 			return fmt.Errorf("failed to build %q: %w", ref, err)
 		}

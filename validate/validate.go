@@ -51,9 +51,10 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	log.Info("Extracted archive", slog.Int("files", m.Files), slog.Int("dirs", m.Dirs))
 
-	log.Info("Running build in airgapped container")
+	log.Info("Running build in airgapped container without binary cache")
 
-	if err = container.Run(ctx, log, args.Image, "validate", args.Code, tgtPath); err != nil {
+	var substituter string
+	if err = container.Run(ctx, log, args.Image, "validate", args.Code, tgtPath, substituter); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 

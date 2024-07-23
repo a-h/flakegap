@@ -18,7 +18,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExportPath string) (err error) {
+func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExportPath, binaryCacheURL string) (err error) {
 	cli, err := client.NewClientWithOpts()
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
@@ -37,12 +37,17 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 		return fmt.Errorf("failed to get absolute target path: %w", err)
 	}
 
+	entrypoint := []string{"/usr/local/bin/runtime", mode}
+	if mode == "export" && binaryCacheURL != "" {
+		entrypoint = append(entrypoint, "-substituter", binaryCacheURL)
+	}
+
 	cconf := &container.Config{
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 		Image:        imageRef,
-		Entrypoint:   []string{"/usr/local/bin/runtime", mode},
+		Entrypoint:   entrypoint,
 	}
 	if mode == "validate" {
 		cconf.NetworkDisabled = true
@@ -60,6 +65,10 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 				Target: "/nix-export",
 			},
 		},
+	}
+	if mode == "export" {
+		// Enable host-based networking so that the container can connect back to the host's binary cache.
+		hconf.NetworkMode = "host"
 	}
 	nconf := &network.NetworkingConfig{}
 	platform := &ocispec.Platform{}
