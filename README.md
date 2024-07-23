@@ -66,6 +66,106 @@ And run the build:
 nix build
 ```
 
+## Installation
+
+### Nix shell (source)
+
+```bash
+nix shell github:a-h/flakegap
+```
+
+### Nix flake (source)
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    flakegap = {
+      url = "github:a-h/flakegap";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+  outputs = { self, nixpkgs, flakegap }:
+    let
+      allSystems = [
+        "x86_64-linux" # 64-bit Intel/AMD Linux
+        "aarch64-linux" # 64-bit ARM Linux
+        "x86_64-darwin" # 64-bit Intel macOS
+        "aarch64-darwin" # 64-bit ARM macOS
+      ];
+
+      forAllSystems = f: nixpkgs.lib.genAttrs allSystems (system: f {
+        system = system;
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+      });
+
+      devShellTools = { system, pkgs }: with pkgs; [
+        flakegap.packages.${system}.default
+        nmap
+      ];
+    in
+    {
+      devShells = forAllSystems ({ system, pkgs }: {
+        default = pkgs.mkShell {
+          buildInputs = (devShellTools { system = system; pkgs = pkgs; });
+        };
+      });
+    };
+}
+```
+
+## Nix flake (Flakehub)
+
+Add it to your project with Flakehub's CLI:
+
+```bash
+nix run "https://flakehub.com/f/DeterminateSystems/fh/*.tar.gz" add "a-h/flakegap"
+```
+
+You can then use the Flake input, as shown here:
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
+    flakegap = {
+      url = "https://flakehub.com/f/a-h/flakegap/*.tar.gz";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+  outputs = { self, nixpkgs, flakegap }:
+    let
+      allSystems = [
+        "x86_64-linux" # 64-bit Intel/AMD Linux
+        "aarch64-linux" # 64-bit ARM Linux
+        "x86_64-darwin" # 64-bit Intel macOS
+        "aarch64-darwin" # 64-bit ARM macOS
+      ];
+
+      forAllSystems = f: nixpkgs.lib.genAttrs allSystems (system: f {
+        system = system;
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+      });
+
+      devShellTools = { system, pkgs }: with pkgs; [
+        flakegap.packages.${system}.default
+        nmap
+      ];
+    in
+    {
+      devShells = forAllSystems ({ system, pkgs }: {
+        default = pkgs.mkShell {
+          buildInputs = (devShellTools { system = system; pkgs = pkgs; });
+        };
+      });
+    };
+}
+```
+
 ## Tasks
 
 ### gomod2nix-update
