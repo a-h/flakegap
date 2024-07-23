@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/a-h/flakegap/container"
 )
@@ -90,6 +91,9 @@ func unarchive(ctx context.Context, src, dst string) (m Metrics, err error) {
 			return m, err
 		}
 
+		if strings.Contains(header.Name, "..") {
+			return m, fmt.Errorf("tar contains invalid path: %s", header.Name)
+		}
 		target := filepath.Join(dst, header.Name)
 		switch header.Typeflag {
 		case tar.TypeDir:
