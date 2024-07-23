@@ -44,6 +44,11 @@ func (a Args) Validate() error {
 }
 
 func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
+	//TODO: Run a local binary cache: nix run nixpkgs#nix-serve -- -p 8080
+	//TODO: Run the docker container with `--network host` to enable connection back to localhost.
+	//TODO: e.g. docker run -it --rm --network host -v $PWD:/code:Z -v $PWD/nix-export:/nix-export --entrypoint=/bin/bash ghcr.io/a-h/flakegap:local
+	//TODO: Update the build command to use a local substituter: nix build --substituters 'http://localhost:8080/?trusted=1 https://cache.nixos.org/'
+
 	log.Info("Running container")
 
 	nixExportPath, err := os.MkdirTemp("", "flakegap")

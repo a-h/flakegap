@@ -38,17 +38,15 @@ func run(log *slog.Logger, mode string) (err error) {
 	if mode == "validate" {
 		// nix copy --all --offline --impure --no-check-sigs --from file:///nix-export/
 		if err = nixcmd.CopyFrom(os.Stdout, os.Stderr); err != nil {
-			log.Error("failed to copy from /nix-export", slog.Any("error", err))
 			return fmt.Errorf("failed to copy from /nix-export: %w", err)
 		}
 	}
 
 	log.Info("Gathering Nix outputs")
 	// nix flake show --json
-	op, err := nixcmd.FlakeShow()
+	op, err := nixcmd.FlakeShow(os.Stdout, os.Stderr)
 	if err != nil {
-		log.Error("failed to gather nix outputs", slog.Any("error", err))
-		return err
+		return fmt.Errorf("failed to gather nix outputs: %w", err)
 	}
 	drvs := op.Derivations()
 
@@ -64,7 +62,6 @@ func run(log *slog.Logger, mode string) (err error) {
 		// nix path-info --json <ref>
 		path, err := nixcmd.PathInfo(os.Stdout, os.Stderr, ref)
 		if err != nil {
-			log.Error("failed to get path info", slog.String("ref", ref), slog.Any("error", err))
 			return fmt.Errorf("failed to get path info for %q: %w", ref, err)
 		}
 		pathsToDelete = append(pathsToDelete, path)

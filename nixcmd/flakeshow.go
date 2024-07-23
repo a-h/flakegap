@@ -1,28 +1,33 @@
 package nixcmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 )
 
-func FlakeShow() (op FlakeShowOutput, err error) {
+func FlakeShow(stdout, stderr io.Writer) (op FlakeShowOutput, err error) {
 	nixPath, err := exec.LookPath("nix")
 	if err != nil {
-		return op, fmt.Errorf("failed to find nix on path: %v", err)
+		return op, fmt.Errorf("failed to find nix on path: %w", err)
 	}
+
+	stdoutBuffer := new(bytes.Buffer)
 
 	cmd := exec.Command(nixPath, "flake", "show", "--json")
+	cmd.Stdout = io.MultiWriter(stdoutBuffer, stdout)
+	cmd.Stderr = stderr
 	cmd.Dir = "/code"
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return op, NewCommandError("failed to run nix flake show", err, string(output))
+	if err = cmd.Run(); err != nil {
+		return op, fmt.Errorf("failed to run nix flake show: %w", err)
 	}
 
-	err = json.Unmarshal(output, &op)
+	err = json.Unmarshal(stdoutBuffer.Bytes(), &op)
 	if err != nil {
-		return op, NewCommandError("failed to parse nix flake show output", err, string(output))
+		return op, fmt.Errorf("failed to parse nix flake show output: %w", err)
 	}
 
 	return op, err
