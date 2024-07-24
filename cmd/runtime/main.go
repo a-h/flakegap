@@ -17,12 +17,14 @@ func main() {
 	log = log.With(slog.String("version", version))
 	log = log.With(slog.String("flakegap", "server"))
 
+	args := os.Args
 	mode := "export"
-	if len(os.Args) < 2 {
+	if len(args) < 2 {
 		log.Info("No mode specified, defaulting to export")
+		args = append(args, "export")
 	}
 	if len(os.Args) >= 2 {
-		mode = os.Args[1]
+		mode = args[1]
 	}
 	if mode != "export" && mode != "validate" {
 		log.Warn("Invalid mode, defaulting to export", slog.String("mode", mode))
@@ -32,7 +34,7 @@ func main() {
 	var substituter string
 	cmdFlags := flag.NewFlagSet("runtime", flag.ContinueOnError)
 	cmdFlags.StringVar(&substituter, "substituter", "", "Substituter to use")
-	cmdFlags.Parse(os.Args[2:])
+	cmdFlags.Parse(args[2:])
 
 	if err := run(log, mode, substituter); err != nil {
 		log.Error("fatal error", slog.Any("error", err))
