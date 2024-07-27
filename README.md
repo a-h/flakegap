@@ -180,6 +180,12 @@ gomod2nix
 nix build
 ```
 
+### build-runtime
+
+```bash
+nix build .#runtime
+```
+
 ### develop
 
 ```bash
@@ -197,4 +203,13 @@ docker image tag ghcr.io/a-h/flakegap:latest ghcr.io/a-h/flakegap:local
 
 ```bash
 docker run -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:latest
+```
+
+### test
+
+```bash
+echo "Exporting Flake requirements..."
+nix run .#default -- export -image ghcr.io/a-h/flakegap:local
+echo "Validating Flake requirements..."
+nix run .#default -- validate -image ghcr.io/a-h/flakegap:local
 ```
