@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	pathpkg "path"
 	"path/filepath"
 	"strings"
 
@@ -10,10 +11,14 @@ import (
 	"zombiezen.com/go/sqlite/sqlitex"
 )
 
-func New(uri string) (db *DB, close func() error, err error) {
-	db = &DB{}
+func New(nixPath string) (db *DB, close func() error, err error) {
+	uri := filepath.Join(nixPath, "var", "nix", "db", "db.sqlite")
+	db = &DB{
+		StorePath: filepath.Join(nixPath, "store"),
+	}
 	db.pool, err = sqlitex.NewPool(uri, sqlitex.PoolOptions{
 		PoolSize: 10,
+		Flags:    sqlite.OpenReadWrite,
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("db: failed to create pool: %w", err)
@@ -22,7 +27,8 @@ func New(uri string) (db *DB, close func() error, err error) {
 }
 
 type DB struct {
-	pool *sqlitex.Pool
+	StorePath string
+	pool      *sqlitex.Pool
 }
 
 func (d *DB) QueryPathFromHashPart(ctx context.Context, hash string) (path string, ok bool, err error) {
@@ -31,14 +37,18 @@ func (d *DB) QueryPathFromHashPart(ctx context.Context, hash string) (path strin
 		return "", false, fmt.Errorf("db: failed to take connection: %w", err)
 	}
 	defer d.pool.Put(conn)
+	prefix := pathpkg.Join(d.StorePath, hash)
 	err = sqlitex.ExecuteTransient(conn, `select path from ValidPaths where path >= ? limit 1;`, &sqlitex.ExecOptions{
-		Args: []any{hash},
+		Args: []any{prefix},
 		ResultFunc: func(stmt *sqlite.Stmt) error {
 			path = stmt.ColumnText(0)
 			ok = true
 			return nil
 		},
 	})
+	if !strings.HasPrefix(path, prefix) {
+		return "", false, nil
+	}
 	return path, ok, err
 }
 
@@ -67,7 +77,7 @@ func (d *DB) QueryPathInfo(ctx context.Context, storePath string) (pathInfo Path
 			pathInfo.ID = stmt.ColumnInt(0)
 			pathInfo.Hash = stmt.ColumnText(1)
 			pathInfo.RegistrationTime = stmt.ColumnInt(2)
-			pathInfo.Deriver = stmt.ColumnText(3)
+			pathInfo.Deriver = d.stripPath(stmt.ColumnText(3))
 			pathInfo.NarSize = stmt.ColumnInt(4)
 			pathInfo.Ultimate = stmt.ColumnInt(5) == 1
 			pathInfo.Sigs = newStringSet(stmt.ColumnText(6), " ")
@@ -82,6 +92,26 @@ func (d *DB) QueryPathInfo(ctx context.Context, storePath string) (pathInfo Path
 	}
 
 	return pathInfo, ok, err
+}
+
+func (d *DB) stripPath(s string) string {
+	prefix := d.StorePath
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	return strings.TrimPrefix(s, prefix)
+}
+
+func (d *DB) stripPathAll(ss []string) []string {
+	result := make([]string, len(ss))
+	prefix := d.StorePath
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	for i, s := range ss {
+		result[i] = strings.TrimPrefix(s, prefix)
+	}
+	return result
 }
 
 func (d *DB) QueryReferences(ctx context.Context, id int) (references []string, err error) {
@@ -104,7 +134,7 @@ func (d *DB) QueryReferences(ctx context.Context, id int) (references []string, 
 			if err != nil {
 				return fmt.Errorf("db: failed to get abs path %q: %w", stmt.ColumnText(0), err)
 			}
-			references = append(references, path)
+			references = append(references, d.stripPath(path))
 			return nil
 		},
 	})

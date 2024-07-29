@@ -205,6 +205,12 @@ docker image tag ghcr.io/a-h/flakegap:latest ghcr.io/a-h/flakegap:local
 docker run -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:latest
 ```
 
+### serve-run
+
+```bash
+nix run .#default -- serve
+```
+
 ### test
 
 ```bash

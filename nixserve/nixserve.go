@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os/exec"
 	"path"
@@ -13,21 +14,22 @@ import (
 	"github.com/a-h/flakegap/nixserve/db"
 )
 
-func New() (h *Handler, closer func() error, err error) {
-	db, closer, err := db.New("file:/nix/var/nix/db/db.sqlite")
+func New(log *slog.Logger) (h *Handler, closer func() error, err error) {
+	db, closer, err := db.New("/nix")
 	h = &Handler{
-		db:        db,
-		storePath: "/nix/store",
+		Log: log,
+		db:  db,
 	}
 	return h, closer, err
 }
 
 type Handler struct {
-	db        *db.DB
-	storePath string
+	Log *slog.Logger
+	db  *db.DB
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.Log.Info(fmt.Sprintf("%s %s", r.Method, r.URL.Path))
 	if r.URL.Path == "/nix-cache-info" {
 		h.getNixCacheInfo(w, r)
 		return
@@ -48,8 +50,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getNixCacheInfo(w http.ResponseWriter, r *http.Request) {
+	if !strings.HasSuffix(r.URL.Path, "nix-cache-info") {
+		http.Error(w, fmt.Sprintf("expected nix-cache-info file, got %s\n", r.URL.Path), http.StatusBadRequest)
+		return
+	}
 	w.Header().Set("Content-Type", "text/plain")
-	fmt.Fprintf(w, "StoreDir: %s\nWantMassQuery: 1\nPriority: 30\n", h.storePath)
+	fmt.Fprintf(w, "StoreDir: %s\nWantMassQuery: 1\nPriority: 30\n", h.db.StorePath)
 }
 
 func (h *Handler) getNarInfo(w http.ResponseWriter, r *http.Request) {
@@ -61,29 +67,35 @@ func (h *Handler) getNarInfo(w http.ResponseWriter, r *http.Request) {
 	hashPart := strings.TrimSuffix(fileName, ".narinfo")
 	storePath, ok, err := h.db.QueryPathFromHashPart(r.Context(), hashPart)
 	if err != nil {
+		h.Log.Error("failed to query path", slog.Any("error", err))
 		http.Error(w, fmt.Sprintf("failed to query path: %v\n", err), http.StatusInternalServerError)
 		return
 	}
 	if !ok {
+		h.Log.Info("narinfo not found", slog.Any("hashPart", hashPart))
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "narinfo not found for %s\n", hashPart)
 		return
 	}
 	pathInfo, ok, err := h.db.QueryPathInfo(r.Context(), storePath)
 	if err != nil {
+		h.Log.Error("failed to query path info", slog.Any("error", err))
 		http.Error(w, fmt.Sprintf("failed to query path info: %v\n", err), http.StatusInternalServerError)
 		return
 	}
 	if !ok {
+		h.Log.Warn("path info not found", slog.Any("storePath", storePath))
 		http.Error(w, fmt.Sprintf("path info not found for %s\n", storePath), http.StatusNotFound)
 		return
 	}
 	if !strings.HasPrefix(pathInfo.Hash, "sha256:") {
+		h.Log.Warn("invalid hash", slog.Any("hash", pathInfo.Hash))
 		http.Error(w, fmt.Sprintf("invalid hash: %s\n", pathInfo.Hash), http.StatusInternalServerError)
 		return
 	}
 	narHash := strings.TrimPrefix(pathInfo.Hash, "sha256:")
-	if len(narHash) != 52 {
+	if len(narHash) != 64 {
+		h.Log.Warn("invalid hash length", slog.Any("hash", pathInfo.Hash))
 		http.Error(w, fmt.Sprintf("invalid hash length: %s\n", pathInfo.Hash), http.StatusInternalServerError)
 		return
 	}
@@ -97,7 +109,9 @@ func (h *Handler) getNarInfo(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(buf, "NarHash: %s\n", pathInfo.Hash)
 	fmt.Fprintf(buf, "NarSize: %d\n", pathInfo.NarSize)
 	fmt.Fprintf(buf, "References: %s\n", strings.Join(pathInfo.Refs, " "))
-	//TODO: Implement the derivers field.
+	if pathInfo.Deriver != "" {
+		fmt.Fprintf(buf, "Deriver: %s\n", pathInfo.Deriver)
+	}
 
 	// Send the output.
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", buf.Len()))
@@ -118,60 +132,67 @@ func (h *Handler) getNar(w http.ResponseWriter, r *http.Request) {
 	var expectedNarHash string
 	if split := strings.SplitN(hashPart, "-", 2); len(split) == 2 {
 		expectedNarHash = "sha256:" + split[1]
+		hashPart = split[0]
 	}
 
 	storePath, ok, err := h.db.QueryPathFromHashPart(r.Context(), hashPart)
 	if err != nil {
+		h.Log.Error("failed to query path", slog.Any("error", err))
 		http.Error(w, fmt.Sprintf("failed to query path: %v\n", err), http.StatusInternalServerError)
 		return
 	}
 	if !ok {
+		h.Log.Info("narinfo not found", slog.Any("hashPart", hashPart))
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "narinfo not found for %s\n", hashPart)
 		return
 	}
 	pathInfo, ok, err := h.db.QueryPathInfo(r.Context(), storePath)
 	if err != nil {
+		h.Log.Error("failed to query path info", slog.Any("error", err))
 		http.Error(w, fmt.Sprintf("failed to query path info: %v\n", err), http.StatusInternalServerError)
 		return
 	}
 	if !ok {
+		h.Log.Warn("path info not found", slog.Any("storePath", storePath))
 		http.Error(w, fmt.Sprintf("path info not found for %s\n", storePath), http.StatusNotFound)
 		return
 	}
 	if !strings.HasPrefix(pathInfo.Hash, "sha256:") {
+		h.Log.Warn("invalid hash", slog.Any("hash", pathInfo.Hash))
 		http.Error(w, fmt.Sprintf("invalid hash: %s\n", pathInfo.Hash), http.StatusInternalServerError)
 		return
 	}
 	narHash := strings.TrimPrefix(pathInfo.Hash, "sha256:")
-	if len(narHash) != 52 {
+	if len(narHash) != 64 {
+		h.Log.Warn("invalid hash length", slog.Any("hash", pathInfo.Hash))
 		http.Error(w, fmt.Sprintf("invalid hash length: %s\n", pathInfo.Hash), http.StatusInternalServerError)
 		return
 	}
 	if expectedNarHash != "" && expectedNarHash != pathInfo.Hash {
+		h.Log.Warn("incorrect hash", slog.Any("expected", expectedNarHash), slog.Any("actual", pathInfo.Hash))
 		http.Error(w, "Incorrect NAR hash. Maybe the path has been recreated.", http.StatusNotFound)
 		return
 	}
 
-	stdout := bytes.NewBuffer(nil)
+	// The Perl implementation sets the Content-Type to text/plain,
+	// but it should be application/octet-stream.
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", pathInfo.NarSize))
+
 	stderr := bytes.NewBuffer(nil)
-	if err = dumpPath(r.Context(), stdout, stderr, storePath); err != nil {
-		http.Error(w, fmt.Sprintf("failed to dump path with stdout %q and stderr %q", string(stdout.Bytes()), string(stderr.Bytes())), http.StatusInternalServerError)
+	if err = dumpPath(r.Context(), w, stderr, storePath); err != nil {
+		h.Log.Error("failed to dump path", slog.String("storePath", storePath), slog.Any("error", err), slog.String("stderr", stderr.String()))
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/plain")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", stdout.Len()))
-	w.Write(stdout.Bytes())
 }
 
-func dumpPath(ctx context.Context, stdout, stderr io.Writer, ref string, args ...string) (err error) {
+func dumpPath(ctx context.Context, stdout, stderr io.Writer, ref string) (err error) {
 	nixPath, err := exec.LookPath("nix")
 	if err != nil {
 		return fmt.Errorf("failed to find nix on path: %v", err)
 	}
-
-	cmdArgs := append([]string{"run", ref}, args...)
+	cmdArgs := []string{"store", "dump-path", ref}
 	cmd := exec.CommandContext(ctx, nixPath, cmdArgs...)
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
@@ -179,8 +200,10 @@ func dumpPath(ctx context.Context, stdout, stderr io.Writer, ref string, args ..
 }
 
 func (h *Handler) getLog(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasSuffix(r.URL.Path, ".nar") {
-		http.Error(w, fmt.Sprintf("expected .nar file, got %s\n", r.URL.Path), http.StatusBadRequest)
+	storePath := strings.TrimPrefix(r.URL.Path, "/log")
+	stderr := bytes.NewBuffer(nil)
+	if err := nixLog(r.Context(), w, stderr, storePath); err != nil {
+		h.Log.Error("failed to get log", slog.String("storePath", r.URL.Path), slog.Any("error", err), slog.String("stderr", stderr.String()))
 		return
 	}
 }
@@ -190,7 +213,6 @@ func nixLog(ctx context.Context, stdout, stderr io.Writer, storePath string) (er
 	if err != nil {
 		return fmt.Errorf("failed to find nix on path: %v", err)
 	}
-
 	cmd := exec.CommandContext(ctx, nixPath, "log", storePath)
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
