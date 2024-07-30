@@ -1,0 +1,70 @@
+nix copy --to file:///$PWD/serve github:a-h/serve
+
+root@7d679e334ba0:/# curl -v localhost:5001
+> GET / HTTP/1.1
+> Host: localhost:5001
+> User-Agent: curl/8.5.0
+> Accept: */*
+>
+< HTTP/1.1 404 Not Found
+< Content-Type: text/plain
+< Transfer-Encoding: chunked
+< Date: Sun, 28 Jul 2024 21:04:03 GMT
+< Connection: keep-alive
+<
+File not found.
+
+root@7d679e334ba0:/# curl -v localhost:5001/nix-cache-info
+* Connected to localhost (127.0.0.1) port 5001
+> GET /nix-cache-info HTTP/1.1
+> Host: localhost:5001
+> User-Agent: curl/8.5.0
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Content-Type: text/plain
+< Transfer-Encoding: chunked
+< Date: Sun, 28 Jul 2024 21:04:58 GMT
+< Connection: keep-alive
+<
+StoreDir: /nix/store
+WantMassQuery: 1
+Priority: 30
+
+root@7d679e334ba0:/# curl -v http://localhost:5001/9cx8xhdxirj0h7yap2vgjxk65360ngg7.narinfo
+> GET /9cx8xhdxirj0h7yap2vgjxk65360ngg7.narinfo HTTP/1.1
+> Host: localhost:5001
+> User-Agent: curl/8.5.0
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Content-Type: text/x-nix-narinfo
+< Content-Length: 440
+< Date: Sun, 28 Jul 2024 21:09:45 GMT
+< Connection: keep-alive
+<
+StorePath: /nix/store/9cx8xhdxirj0h7yap2vgjxk65360ngg7-libidn2-2.3.4
+URL: nar/9cx8xhdxirj0h7yap2vgjxk65360ngg7-15vq1jxkzrq539czm0qjw4d1i9knvci1fpjl9jncsq79gq9bfn92.nar
+Compression: none
+NarHash: sha256:15vq1jxkzrq539czm0qjw4d1i9knvci1fpjl9jncsq79gq9bfn92
+NarSize: 365432
+References: 9cx8xhdxirj0h7yap2vgjxk65360ngg7-libidn2-2.3.4 by0gd1lfh3vsnk9vfipflcbz2f83bv3r-libunistring-1.1
+Deriver: zaw9d3wyh2f1sp47z6l72vfd30xkxx22-libidn2-2.3.4.drv
+
+root@7d679e334ba0:/# curl -v http://localhost:5001/nar/9cx8xhdxirj0h7yap2vgjxk65360ngg7-15vq1jxkzrq539czm0qjw4d1i9knvci1fpjl9jncsq79gq9bfn92.nar
+> GET /nar/9cx8xhdxirj0h7yap2vgjxk65360ngg7-15vq1jxkzrq539czm0qjw4d1i9knvci1fpjl9jncsq79gq9bfn92.nar HTTP/1.1
+> Host: localhost:5001
+> User-Agent: curl/8.5.0
+> Accept: */*
+>
+< HTTP/1.1 200 OK
+< Content-Type: text/plain
+< Content-Length: 365432
+< Date: Sun, 28 Jul 2024 21:10:29 GMT
+< Connection: keep-alive
+<
+Warning: Binary output can mess up your terminal. Use "--output -" to tell
+Warning: curl to output it to your terminal anyway, or consider "--output
+Warning: <FILE>" to save to a file.
+* Failure writing output to destination
+* Closing connection

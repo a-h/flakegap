@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/a-h/flakegap/container"
-	"github.com/a-h/flakegap/nixcmd"
+	"github.com/a-h/flakegap/nixserve"
 	"github.com/nix-community/go-nix/pkg/narinfo"
 )
 
@@ -64,21 +64,23 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		RawQuery: "trusted=1",
 	}).String()
 
+	server := &http.Server{
+		Addr: args.BinaryCacheAddr,
+	}
+
 	wg.Add(1)
-	binaryCacheShutdown := make(chan struct{})
 	go func() {
 		defer wg.Done()
-		cmd, err := nixcmd.Run(ctx, os.Stdout, os.Stderr, "github:NixOS/nixpkgs/nixos-24.05#nix-serve", "--", "-l", args.BinaryCacheAddr)
+
+		h, closer, err := nixserve.New(log)
 		if err != nil {
-			log.Error("Failed to start binary cache", slog.Any("error", err))
+			log.Error("Failed to create nixserve", slog.Any("error", err))
 			return
 		}
-		<-binaryCacheShutdown
-		if err = cmd.Cancel(); err != nil {
-			log.Error("Failed to stop binary cache", slog.Any("error", err))
-			if err = cmd.Process.Kill(); err != nil {
-				log.Error("Failed to kill binary cache", slog.Any("error", err))
-			}
+		defer closer()
+		server.Handler = h
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("Failed to start binary cache", slog.Any("error", err))
 		}
 	}()
 
@@ -123,7 +125,9 @@ loop:
 	}
 
 	log.Info("Shutting down binary cache")
-	close(binaryCacheShutdown)
+	if err := server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown binary cache: %w", err)
+	}
 	wg.Wait()
 
 	log.Info("Complete")
@@ -138,6 +142,9 @@ func writeManifest(ctx context.Context, nixExportPath, exportManifestFileName st
 	defer w.Close()
 
 	return filepath.Walk(nixExportPath, func(path string, info os.FileInfo, err error) error {
+		if cancel := ctx.Err(); cancel != nil {
+			return cancel
+		}
 		if err != nil {
 			return err
 		}
@@ -173,6 +180,9 @@ func archive(ctx context.Context, srcPath, tgtPath string) (err error) {
 	tw := tar.NewWriter(zw)
 
 	err = filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {
+		if cancel := ctx.Err(); cancel != nil {
+			return cancel
+		}
 		if err != nil {
 			return err
 		}

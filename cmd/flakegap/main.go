@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/a-h/flakegap/export"
+	"github.com/a-h/flakegap/nixserve"
 	"github.com/a-h/flakegap/validate"
 )
 
@@ -31,12 +33,14 @@ func main() {
 	switch os.Args[1] {
 	case "version":
 		fmt.Println(version)
+	case "serve":
+		err = serveCmd(ctx, log)
 	case "export":
 		err = exportCmd(ctx, log)
 	case "validate":
 		err = validateCmd(ctx, log)
 	default:
-		fmt.Println("flakegap: unknown command")
+		fmt.Printf("flakegap: unknown command %q\n", os.Args[1])
 		fmt.Println()
 		printUsage()
 	}
@@ -45,6 +49,32 @@ func main() {
 		log.Error("error", slog.Any("error", err))
 		os.Exit(1)
 	}
+}
+
+func serveCmd(ctx context.Context, log *slog.Logger) error {
+	server := &http.Server{}
+
+	cmdFlags := flag.NewFlagSet("serve", flag.ContinueOnError)
+	cmdFlags.StringVar(&server.Addr, "addr", "localhost:41805", "Listen address for Nix binary cache")
+	cmdFlags.Parse(os.Args[2:])
+
+	// Start the binary cache.
+	h, closer, err := nixserve.New(log)
+	if err != nil {
+		return fmt.Errorf("failed to create nixserve: %w", err)
+	}
+	server.Handler = h
+	defer closer()
+
+	go func() {
+		log.Info("Starting server", slog.String("addr", server.Addr))
+		<-ctx.Done()
+		if err := server.Shutdown(ctx); err != nil {
+			log.Error("failed to shutdown server", slog.Any("error", err))
+		}
+	}()
+
+	return server.ListenAndServe()
 }
 
 func exportCmd(ctx context.Context, log *slog.Logger) error {
@@ -89,5 +119,8 @@ Usage:
     - Starts a container that runs required export commands.
 
   flakegap validate
-    - Validates that the export worked by running a build in an airgapped container.`)
+    - Validates that the export worked by running a build in an airgapped container.
+
+  flakegap serve
+    - Serve a local binary cache for the airgapped system to use (started automatically by export).`)
 }
