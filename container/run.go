@@ -101,7 +101,11 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 		}
 	}()
 
-	// Stream the logs.
+	if err := cli.ContainerStart(ctx, cont.ID, container.StartOptions{}); err != nil {
+		return fmt.Errorf("failed to start container: %w", err)
+	}
+
+	// Stream the logs, now that the container is running.
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -117,10 +121,6 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 		defer r.Close()
 		_, logErr = io.Copy(os.Stdout, r)
 	}()
-
-	if err := cli.ContainerStart(ctx, cont.ID, container.StartOptions{}); err != nil {
-		return fmt.Errorf("failed to start container: %w", err)
-	}
 
 	wg.Wait()
 

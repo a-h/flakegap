@@ -18,6 +18,7 @@ import (
 	"github.com/a-h/flakegap/container"
 	"github.com/a-h/flakegap/nixserve"
 	"github.com/nix-community/go-nix/pkg/narinfo"
+	cp "github.com/otiai10/copy"
 )
 
 type Args struct {
@@ -112,6 +113,40 @@ loop:
 
 	if err = container.Run(ctx, log, args.Image, "export", args.Code, nixExportPath, binaryCacheURL); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
+	}
+
+	log.Info("Copying source code")
+	srcOutputDir := filepath.Join(nixExportPath, "source")
+	if err := os.MkdirAll(srcOutputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create source output directory: %w", err)
+	}
+	ignore := []string{".direnv", "result"}
+	symlinks := make(map[string]struct{})
+	opt := cp.Options{
+		Skip: func(srcinfo os.FileInfo, src, dest string) (bool, error) {
+			for _, ignored := range ignore {
+				if srcinfo.Name() == ignored {
+					return true, nil
+				}
+			}
+			return false, nil
+		},
+		OnSymlink: func(src string) cp.SymlinkAction {
+			symlinks[src] = struct{}{}
+			return cp.Deep
+		},
+		OnError: func(src, dest string, err error) error {
+			if _, ok := symlinks[src]; ok {
+				// Ignore errors for symlinks.
+				log.Warn("Ignoring symlink error", slog.String("src", src), slog.String("dest", dest), slog.Any("error", err))
+				return nil
+			}
+			return err
+		},
+		Sync: true,
+	}
+	if err := cp.Copy(args.Code, srcOutputDir, opt); err != nil {
+		return fmt.Errorf("failed to copy source code: %w", err)
 	}
 
 	log.Info("Collecting store paths")

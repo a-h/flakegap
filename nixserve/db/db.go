@@ -19,7 +19,9 @@ func New(nixPath string) (db *DB, close func() error, err error) {
 	db = &DB{
 		StorePath: filepath.Join(nixPath, "store"),
 	}
-	db.pool, err = sqlitex.NewPool(uri, sqlitex.PoolOptions{})
+	db.pool, err = sqlitex.NewPool(uri, sqlitex.PoolOptions{
+		Flags: sqlite.OpenReadWrite,
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("db: failed to create pool: %w", err)
 	}

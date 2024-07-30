@@ -12,7 +12,7 @@ func CopyFrom(stdout, stderr io.Writer) (err error) {
 		return fmt.Errorf("failed to find nix on path: %v", err)
 	}
 
-	cmd := exec.Command(nixPath, "copy", "--all", "--offline", "--impure", "--no-check-sigs", "--from", "file:///nix-export/")
+	cmd := exec.Command(nixPath, "copy", "--all", "--offline", "--impure", "--no-check-sigs", "--from", "file:///nix-export/nix-store/")
 	cmd.Dir = "/code"
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
@@ -25,7 +25,7 @@ func CopyTo(stdout, stderr io.Writer) (err error) {
 		return fmt.Errorf("failed to find nix on path: %v", err)
 	}
 
-	cmd := exec.Command(nixPath, "copy", "--derivation", "--all", "--to", "file:///nix-export/")
+	cmd := exec.Command(nixPath, "copy", "--derivation", "--all", "--to", "file:///nix-export/nix-store/")
 	cmd.Dir = "/code"
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout

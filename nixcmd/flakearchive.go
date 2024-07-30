@@ -12,8 +12,8 @@ func FlakeArchive(stdout, stderr io.Writer) (err error) {
 		return fmt.Errorf("failed to find nix on path: %v", err)
 	}
 
-	// Inside the Docker container, the export is hard coded to /nix-export.
-	cmd := exec.Command(nixPath, "flake", "archive", "--to", "file:///nix-export/")
+	// Inside the Docker container, the export is hard coded to /nix-export/nix-store/
+	cmd := exec.Command(nixPath, "flake", "archive", "--to", "file:///nix-export/nix-store/")
 	cmd.Stderr = stderr
 	cmd.Stdout = stdout
 	return cmd.Run()

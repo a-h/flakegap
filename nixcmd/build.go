@@ -14,7 +14,7 @@ func Build(stdout, stderr io.Writer, ref string, substituters []string) error {
 	}
 
 	// Build args.
-	cmdArgs := []string{"build", "--no-link", "--impure"}
+	cmdArgs := []string{"build", "--impure"}
 	if len(substituters) > 0 {
 		cmdArgs = append(cmdArgs, "--substituters", strings.Join(substituters, " "))
 	}

@@ -3,10 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
+	"strings"
+
 	"log/slog"
 	"os"
 
 	"github.com/a-h/flakegap/nixcmd"
+	cp "github.com/otiai10/copy"
 )
 
 var version string
@@ -56,9 +60,9 @@ func run(log *slog.Logger, mode string, substituter string) (err error) {
 	}
 	if mode == "validate" {
 		log.Info("Restoring Nix store from export")
-		// nix copy --all --offline --impure --no-check-sigs --from file:///nix-export/
+		// nix copy --all --offline --impure --no-check-sigs --from file:///nix-export/nix-store/
 		if err = nixcmd.CopyFrom(os.Stdout, os.Stderr); err != nil {
-			return fmt.Errorf("failed to copy from /nix-export: %w", err)
+			return fmt.Errorf("failed to copy from /nix-export/nix-store: %w", err)
 		}
 	}
 
@@ -74,7 +78,7 @@ func run(log *slog.Logger, mode string, substituter string) (err error) {
 	var pathsToDelete []string
 	for _, ref := range drvs {
 		log.Info("Building", slog.String("ref", ref))
-		// ALLOW_UNFREE=1 nix build --no-link --impure <ref>
+		// ALLOW_UNFREE=1 nix build --impure <ref>
 		if err := nixcmd.Build(os.Stdout, os.Stderr, ref, substituters); err != nil {
 			log.Error("failed to build", slog.String("ref", ref), slog.Any("error", err))
 			return fmt.Errorf("failed to build %q: %w", ref, err)
@@ -84,13 +88,39 @@ func run(log *slog.Logger, mode string, substituter string) (err error) {
 		if err != nil {
 			return fmt.Errorf("failed to get path info for %q: %w", ref, err)
 		}
+		// Take a copy of the outputs.
+		targetDirParts := strings.Split(strings.TrimPrefix(ref, ".#"), ".")
+		target := filepath.Join(append([]string{"/nix-export/outputs/"}, targetDirParts...)...)
+		if err := os.MkdirAll(target, 0755); err != nil {
+			return fmt.Errorf("failed to create outputs directory %q: %w", target, err)
+		}
+		evaluatedPath, err := filepath.EvalSymlinks("./result")
+		if err != nil {
+			return fmt.Errorf("failed to evaluate symlinks for %q: %w", "./result", err)
+		}
+		fi, err := os.Stat(evaluatedPath)
+		if err != nil {
+			return fmt.Errorf("failed to stat %q: %w", path, err)
+		}
+		if !fi.IsDir() {
+			target = filepath.Join(target, "result")
+		}
+		log.Info("Copying", slog.String("target", target))
+		opt := cp.Options{
+			OnSymlink: func(src string) cp.SymlinkAction {
+				return cp.Deep
+			},
+			Sync: true,
+		}
+		if err := cp.Copy("./result", target, opt); err != nil {
+			return fmt.Errorf("failed to copy output %q to %q: %w", "./result", target, err)
+		}
 		pathsToDelete = append(pathsToDelete, path)
 	}
 	// Delete output paths.
 	// nix store delete <path> <path> <path>
 	if err := nixcmd.StoreDelete(os.Stdout, os.Stderr, pathsToDelete); err != nil {
-		log.Error("failed to remove paths", slog.Any("error", err))
-		return fmt.Errorf("failed to remove paths: %w", err)
+		log.Warn("failed to remove all paths, but continuing", slog.Any("error", err))
 	}
 
 	if mode == "validate" {
@@ -98,14 +128,14 @@ func run(log *slog.Logger, mode string, substituter string) (err error) {
 	}
 
 	log.Info("Copying store to output")
-	// nix copy --derivation --to file:///nix-export/ --all
+	// nix copy --derivation --to file:///nix-export/nix-store/ --all
 	if err := nixcmd.CopyTo(os.Stdout, os.Stderr); err != nil {
 		log.Error("failed to copy", slog.Any("error", err))
 		return fmt.Errorf("failed to copy: %w", err)
 	}
 
 	log.Info("Copying flake archive to output")
-	// nix flake archive --to file:///nix-export/
+	// nix flake archive --to file:///nix-export/nix-store/
 	if err := nixcmd.FlakeArchive(os.Stdout, os.Stderr); err != nil {
 		log.Error("failed to archive flake", slog.Any("error", err))
 		return fmt.Errorf("failed to archive flake: %w", err)

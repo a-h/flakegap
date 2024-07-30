@@ -20,16 +20,16 @@ jobs:
       - uses: DeterminateSystems/flake-checker-action@v8
 
       - name: build
-        uses: joerdav/run-xc@v1.0.0
+        uses: joerdav/run-xc@1.0.0
         with:
           task: build
 
       - name: docker-build
-        uses: joerdav/run-xc@v1.0.0
+        uses: joerdav/run-xc@1.0.0
         with:
           task: docker-build
 
       - name: test
-        uses: joerdav/run-xc@v1.0.0
+        uses: joerdav/run-xc@1.0.0
         with:
           task: test
