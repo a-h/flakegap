@@ -2,8 +2,8 @@ schema = 3
 
 [mod]
   [mod."github.com/Microsoft/go-winio"]
-    version = "v0.4.14"
-    hash = "sha256-o3bmSJnZc20Xhybk/oPj9+LqJAVDnvTZ+ELPRFPkZFg="
+    version = "v0.6.2"
+    hash = "sha256-tVNWDUMILZbJvarcl/E7tpSnkn7urqgSHa2Eaka5vSU="
   [mod."github.com/containerd/log"]
     version = "v0.1.0"
     hash = "sha256-vuE6Mie2gSxiN3jTKTZovjcbdBd1YEExb7IBe3GM+9s="
@@ -11,8 +11,8 @@ schema = 3
     version = "v0.6.0"
     hash = "sha256-gr4tL+qz4jKyAtl8LINcxMSanztdt+pybj1T+2ulQv4="
   [mod."github.com/docker/docker"]
-    version = "v27.0.3+incompatible"
-    hash = "sha256-CQ0aA+BnO6tJoKAkT+wEvUqN5VMfpGnBmgVe1uG+jlU="
+    version = "v27.1.1+incompatible"
+    hash = "sha256-w+wyGRGE0BEl4mou8MLy8QWvPcwJfvgTslTFzSEOpaY="
   [mod."github.com/docker/go-connections"]
     version = "v0.5.0"
     hash = "sha256-aGbMRrguh98DupIHgcpLkVUZpwycx1noQXbtTl5Sbms="
@@ -41,14 +41,14 @@ schema = 3
     version = "v1.6.0"
     hash = "sha256-VWl9sqUzdOuhW0KzQlv0gwwUQClYkmZwSydHG2sALYw="
   [mod."github.com/klauspost/cpuid/v2"]
-    version = "v2.2.3"
-    hash = "sha256-NVZKsh72dMgJetJsbLpctSGRaiCW0mC1WMKydOJgFpw="
+    version = "v2.2.8"
+    hash = "sha256-/E58BnABQYxO+cmiue7OQqRLWkd/Lh8grX8DjTU4tk8="
   [mod."github.com/mattn/go-isatty"]
-    version = "v0.0.16"
-    hash = "sha256-YMaPZvShDfA98vqw1+zWWl7M1IT4nHPGBrAt7kHo8Iw="
+    version = "v0.0.20"
+    hash = "sha256-qhw9hWtU5wnyFyuMbKx+7RB8ckQaFQ8D+8GKPkN3HHQ="
   [mod."github.com/minio/sha256-simd"]
-    version = "v1.0.0"
-    hash = "sha256-oEo/BoMqSLdwSjrhHTiFjl5Om4MVLNQXDJINk6Z110Y="
+    version = "v1.0.1"
+    hash = "sha256-4hfGDIQaWq8fvtGzHDhoK9v2IocXnJY7OAL6saMJbmA="
   [mod."github.com/moby/docker-image-spec"]
     version = "v1.3.1"
     hash = "sha256-xwSNLmMagzywdGJIuhrWl1r7cIWBYCOMNYbuDDT6Jhs="
@@ -62,11 +62,11 @@ schema = 3
     version = "v1.2.0"
     hash = "sha256-8FzMu3kHUbBX10pUdtGf59Ag7BNupx8ZHeUaodR1/Vk="
   [mod."github.com/multiformats/go-multihash"]
-    version = "v0.2.1"
-    hash = "sha256-RWyw05s4Wnz44J2YzPkJAK/A4l5V4ZGk/c2I4lW18wc="
+    version = "v0.2.3"
+    hash = "sha256-zqIIE5jMFzm+qhUrouSF+WdXGeHUEYIQvVnKWWU6mRs="
   [mod."github.com/multiformats/go-varint"]
-    version = "v0.0.6"
-    hash = "sha256-QlY6AzrSB/8IrlINPi8J8uw1J0SOa2UMTtlo79fg9gM="
+    version = "v0.0.7"
+    hash = "sha256-To3Uuv7uSUJEr5OTwxE1LEIpA62xY3M/KKMNlscHmlA="
   [mod."github.com/ncruces/go-strftime"]
     version = "v0.1.9"
     hash = "sha256-T0iw+UEckzueWHT88PkTnZZixyKCEa+DTLzIiiohuWY="
@@ -110,14 +110,14 @@ schema = 3
     version = "v1.28.0"
     hash = "sha256-8uxmlm0/5VGoWegxwy0q8NgeY+pyicSoV08RkvD9Q98="
   [mod."golang.org/x/crypto"]
-    version = "v0.17.0"
-    hash = "sha256-/vzBaeD/Ymyc7cpjBvSfJfuZ57zWa9LOaZM7b33eIx0="
+    version = "v0.25.0"
+    hash = "sha256-traLAylqoBwGIh0Z1fuEhNjbGgQBItgVjtZYdYr0zzQ="
   [mod."golang.org/x/sync"]
     version = "v0.7.0"
     hash = "sha256-2ETllEu2GDWoOd/yMkOkLC2hWBpKzbVZ8LhjLu0d2A8="
   [mod."golang.org/x/sys"]
-    version = "v0.21.0"
-    hash = "sha256-gapzPWuEqY36V6W2YhIDYR49sEvjJRd7bSuf9K1f4JY="
+    version = "v0.22.0"
+    hash = "sha256-RbG0XaXGGlErCsl2agvUxMnrkRwdbJLmriYT1H24FwA="
   [mod."golang.org/x/text"]
     version = "v0.16.0"
     hash = "sha256-hMTO45upjEuA4sJzGplJT+La2n3oAfHccfYWZuHcH+8="
@@ -128,20 +128,20 @@ schema = 3
     version = "v3.5.1"
     hash = "sha256-ps2GEc3P2xvlrU4TCtXz+nLTxyP0RrF7SScz5jUqE5E="
   [mod."lukechampine.com/blake3"]
-    version = "v1.1.6"
-    hash = "sha256-pKVTpuCcqGSn8s11Jq33yrXewQLvycuAoxKJEdbZ7rA="
+    version = "v1.3.0"
+    hash = "sha256-H7ljr3coQkiNKPvn1fWm7wADu/n/PhBefTKn8UF1Wkg="
   [mod."modernc.org/libc"]
-    version = "v1.41.0"
-    hash = "sha256-/wNLluSteDsaKZBfGseJy/voH81/gtQ7AAZp0mWfgq8="
+    version = "v1.55.6"
+    hash = "sha256-wUvVk2OChA6wuhXDC5gMVy8Km2/daa30ZsJRYg3q43s="
   [mod."modernc.org/mathutil"]
     version = "v1.6.0"
     hash = "sha256-lfuEiS1odd2TWrTylnaGihSJ9myqKs3FLdpvd7PqTnE="
   [mod."modernc.org/memory"]
-    version = "v1.7.2"
-    hash = "sha256-694SlJPGKJvDYs0U/nAWAWDObsQbEJfkuG4+5yKz/yc="
+    version = "v1.8.0"
+    hash = "sha256-ucvPr73zg8LjvU+bcoIPKTgwgcon3U9VhKrLEMH81xg="
   [mod."modernc.org/sqlite"]
-    version = "v1.29.1"
-    hash = "sha256-KMYG98aAAjoRMmHOVntU6xS1ZtpFZeq5vWAxX+z8Ygc="
+    version = "v1.31.1"
+    hash = "sha256-SBYkL7E/nWlNF2oD/OIcadewj5eTDB6wnVTuLUosd/Q="
   [mod."zombiezen.com/go/sqlite"]
     version = "v1.3.0"
     hash = "sha256-qVHsBoOfVf4mvqMud969+5+TRLgJCT5Cl08fKfqLuZA="
