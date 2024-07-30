@@ -16,8 +16,6 @@ import (
 )
 
 type Args struct {
-	// Code is the path to the repo on disk that contains a flake.nix file.
-	Code string
 	// ExportFileName is the path to the `nix-export.tar.gz` file created by the export command.
 	ExportFileName string
 	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
@@ -26,9 +24,6 @@ type Args struct {
 
 func (a Args) Validate() error {
 	var errs []error
-	if a.Code == "" {
-		errs = append(errs, fmt.Errorf("source-path is required"))
-	}
 	if a.ExportFileName == "" {
 		errs = append(errs, fmt.Errorf("export-filename is required"))
 	}
@@ -55,7 +50,8 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	log.Info("Running build in airgapped container without binary cache")
 
 	var substituter string
-	if err = container.Run(ctx, log, args.Image, "validate", args.Code, tgtPath, substituter); err != nil {
+	codePath := filepath.Join(tgtPath, "source")
+	if err = container.Run(ctx, log, args.Image, "validate", codePath, tgtPath, substituter); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 

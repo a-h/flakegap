@@ -118,9 +118,6 @@ schema = 3
   [mod."golang.org/x/sys"]
     version = "v0.22.0"
     hash = "sha256-RbG0XaXGGlErCsl2agvUxMnrkRwdbJLmriYT1H24FwA="
-  [mod."golang.org/x/text"]
-    version = "v0.16.0"
-    hash = "sha256-hMTO45upjEuA4sJzGplJT+La2n3oAfHccfYWZuHcH+8="
   [mod."golang.org/x/time"]
     version = "v0.5.0"
     hash = "sha256-W6RgwgdYTO3byIPOFxrP2IpAZdgaGowAaVfYby7AULU="

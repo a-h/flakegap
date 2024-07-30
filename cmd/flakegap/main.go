@@ -98,13 +98,9 @@ func exportCmd(ctx context.Context, log *slog.Logger) error {
 func validateCmd(ctx context.Context, log *slog.Logger) error {
 	args := validate.Args{}
 	cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
-	cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
-	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename of the nix-export.tar.gz file, defaults to <source-path>/nix-export.tar.gz")
+	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "nix-export.tar.gz", "Filename of the nix-export.tar.gz file, defaults to nix-export.tar.gz")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
 	cmdFlags.Parse(os.Args[2:])
-	if args.ExportFileName == "" {
-		args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
-	}
 	return validate.Run(ctx, log, args)
 }
 
