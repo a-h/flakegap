@@ -2,11 +2,14 @@ package db
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	pathpkg "path"
 	"path/filepath"
 	"strings"
 
+	"github.com/multiformats/go-multihash"
+	"github.com/nix-community/go-nix/pkg/hash"
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 )
@@ -16,10 +19,7 @@ func New(nixPath string) (db *DB, close func() error, err error) {
 	db = &DB{
 		StorePath: filepath.Join(nixPath, "store"),
 	}
-	db.pool, err = sqlitex.NewPool(uri, sqlitex.PoolOptions{
-		PoolSize: 10,
-		Flags:    sqlite.OpenReadWrite,
-	})
+	db.pool, err = sqlitex.NewPool(uri, sqlitex.PoolOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("db: failed to create pool: %w", err)
 	}
@@ -86,6 +86,39 @@ func (d *DB) QueryPathInfo(ctx context.Context, storePath string) (pathInfo Path
 			return nil
 		},
 	})
+	if err != nil {
+		return pathInfo, false, fmt.Errorf("db: failed to query path info: %w", err)
+	}
+	if !ok {
+		return pathInfo, false, nil
+	}
+
+	hashType := multihash.SHA2_256
+	hashParts := strings.SplitN(pathInfo.Hash, ":", 2)
+	if len(hashParts) != 2 {
+		return pathInfo, false, fmt.Errorf("db: invalid hash %q", pathInfo.Hash)
+	}
+	hashPrefix, hashSuffix := hashParts[0], hashParts[1]
+	switch hashPrefix {
+	case "sha1":
+		hashType = multihash.SHA1
+	case "sha256":
+		hashType = multihash.SHA2_256
+	case "sha512":
+		hashType = multihash.SHA2_512
+	default:
+		return pathInfo, false, fmt.Errorf("db: unknown hash type %q", pathInfo.Hash)
+	}
+	sum, err := hex.DecodeString(hashSuffix)
+	if err != nil {
+		return pathInfo, false, fmt.Errorf("db: failed to decode hash %q: %w", pathInfo.Hash, err)
+	}
+	nixHash, err := hash.FromHashTypeAndDigest(hashType, sum)
+	if err != nil {
+		return pathInfo, false, fmt.Errorf("db: failed to parse hash %q: %w", pathInfo.Hash, err)
+	}
+	pathInfo.Hash = nixHash.NixString()
+
 	pathInfo.Refs, err = d.QueryReferences(ctx, pathInfo.ID)
 	if err != nil {
 		return pathInfo, false, fmt.Errorf("db: failed to query references: %w", err)
