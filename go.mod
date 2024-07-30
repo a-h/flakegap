@@ -3,8 +3,9 @@ module github.com/a-h/flakegap
 go 1.21
 
 require (
-	github.com/docker/docker v27.0.3+incompatible
+	github.com/docker/docker v27.1.0+incompatible
 	github.com/google/go-cmp v0.6.0
+	github.com/multiformats/go-multihash v0.2.1
 	github.com/nix-community/go-nix v0.0.0-20231219074122-93cb24a86856
 	github.com/opencontainers/image-spec v1.1.0
 	zombiezen.com/go/sqlite v1.3.0
@@ -29,7 +30,6 @@ require (
 	github.com/moby/term v0.5.0 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
-	github.com/multiformats/go-multihash v0.2.1 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
