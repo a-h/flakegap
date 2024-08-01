@@ -82,15 +82,11 @@ func exportCmd(ctx context.Context, log *slog.Logger) error {
 	cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)
 	cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
-	cmdFlags.StringVar(&args.ExportManifestFileName, "manifest-filename", "", "Filename to write the manifest to - defaults to <source-path>/nix-export.txt")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
 	cmdFlags.StringVar(&args.BinaryCacheAddr, "binary-cache-addr", "localhost:41805", "Listen address for Nix binary cache")
 	cmdFlags.Parse(os.Args[2:])
 	if args.ExportFileName == "" {
 		args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
-	}
-	if args.ExportManifestFileName == "" {
-		args.ExportManifestFileName = filepath.Join(args.Code, "nix-export.txt")
 	}
 	return export.Run(ctx, log, args)
 }

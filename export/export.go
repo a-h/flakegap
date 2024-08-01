@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -26,8 +27,6 @@ type Args struct {
 	Code string
 	// ExportFileName is the path to write the output to, e.g. /tmp/nix-export.tar.gz.
 	ExportFileName string
-	// ExportManifestFileName is the path to write the manifest to, e.g. /tmp/nix-export.txt
-	ExportManifestFileName string
 	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
 	Image string
 	// BinaryCacheAddr is the listen address of the binary cache to use, defaults to localhost:41805
@@ -41,9 +40,6 @@ func (a Args) Validate() error {
 	}
 	if a.ExportFileName == "" {
 		errs = append(errs, fmt.Errorf("export-filename is required"))
-	}
-	if a.ExportManifestFileName == "" {
-		errs = append(errs, fmt.Errorf("manifest-filename is required"))
 	}
 	if a.Image == "" {
 		errs = append(errs, fmt.Errorf("image is required"))
@@ -150,7 +146,7 @@ loop:
 	}
 
 	log.Info("Collecting store paths")
-	if err = writeManifest(ctx, nixExportPath, args.ExportManifestFileName); err != nil {
+	if err = writeManifest(ctx, nixExportPath); err != nil {
 		return fmt.Errorf("failed to get store paths: %w", err)
 	}
 
@@ -169,7 +165,19 @@ loop:
 	return nil
 }
 
-func writeManifest(ctx context.Context, nixExportPath, exportManifestFileName string) (err error) {
+func getArchitecture() string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return "x86_64"
+	case "arm64":
+		return "aarch64"
+	default:
+		return runtime.GOARCH
+	}
+}
+
+func writeManifest(ctx context.Context, nixExportPath string) (err error) {
+	exportManifestFileName := filepath.Join(nixExportPath, fmt.Sprintf("nix-export-%s-%s.txt", getArchitecture(), runtime.GOOS))
 	w, err := os.Create(exportManifestFileName)
 	if err != nil {
 		return fmt.Errorf("failed to create manifest file: %w", err)
