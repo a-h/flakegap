@@ -1,5 +1,6 @@
 {
   inputs = {
+    nix.url = "github:nixos/nix/2.23.1";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
@@ -15,7 +16,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, gomod2nix, gitignore, xc }:
+  outputs = { self, nix, nixpkgs, gomod2nix, gitignore, xc }:
     let
       allSystems = [
         "x86_64-linux" # 64-bit Intel/AMD Linux
@@ -28,6 +29,11 @@
         system = system;
         pkgs = import nixpkgs {
           inherit system;
+          overlays = [
+            (self: super: {
+              nix = nix.packages.${system}.nix;
+            })
+          ];
         };
       });
 
@@ -57,6 +63,7 @@
         pkgs.gh
         pkgs.git
         pkgs.go
+        pkgs.nix
         xc.packages.${system}.xc
         gomod2nix.legacyPackages.${system}.gomod2nix
       ];

@@ -23,7 +23,17 @@ Import the `nix-export.tar.gz` file into the target environment along with the F
 ```bash
 mkdir nix-export
 tar -xzf nix-export.tar.gz --directory ./nix-export
-nix copy --all --offline --impure --no-check-sigs --from file://$PWD/nix-export/nix-store
+nix copy --all --offline --impure --no-check-sigs --from file://$PWD/nix-export/nix-store/
+```
+
+At the `nix copy` operation point, you may get a "path not valid" error. This is due to a bug in Nix - https://github.com/NixOS/nix/issues/9052
+
+You can work around it by importing the paths one by one.
+
+```bash
+while read -r p; do
+  nix copy $p --from file://$PWD/nix-export/nix-store --no-check-sigs;
+done < ./nix-export/nix-export-x86_64-linux.txt
 ```
 
 Use the flake as normal.
