@@ -17,16 +17,16 @@ import (
 var version string
 
 func main() {
+	if len(os.Args) < 2 || os.Args[1] == "--help" || os.Args[1] == "-h" {
+		printUsage()
+		os.Exit(1)
+	}
+
 	ctx := context.Background()
 	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 
 	log = log.With(slog.String("version", version))
 	log = log.With(slog.String("flakegap", "client"))
-
-	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
-	}
 
 	var err error
 
@@ -56,7 +56,14 @@ func serveCmd(ctx context.Context, log *slog.Logger) error {
 
 	cmdFlags := flag.NewFlagSet("serve", flag.ContinueOnError)
 	cmdFlags.StringVar(&server.Addr, "addr", "localhost:41805", "Listen address for Nix binary cache")
+	var help bool
+	cmdFlags.BoolVar(&help, "help", false, "Shows usage and quits")
 	cmdFlags.Parse(os.Args[2:])
+
+	if help {
+		cmdFlags.PrintDefaults()
+		os.Exit(1)
+	}
 
 	// Start the binary cache.
 	h, closer, err := nixserve.New(log)
@@ -84,9 +91,14 @@ func exportCmd(ctx context.Context, log *slog.Logger) error {
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
 	cmdFlags.StringVar(&args.BinaryCacheAddr, "binary-cache-addr", "localhost:41805", "Listen address for Nix binary cache")
+	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
 	if args.ExportFileName == "" {
 		args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
+	}
+	if args.Help {
+		cmdFlags.PrintDefaults()
+		os.Exit(1)
 	}
 	return export.Run(ctx, log, args)
 }
@@ -96,7 +108,12 @@ func validateCmd(ctx context.Context, log *slog.Logger) error {
 	cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "nix-export.tar.gz", "Filename of the nix-export.tar.gz file, defaults to nix-export.tar.gz")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
+	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
+	if args.Help {
+		cmdFlags.PrintDefaults()
+		os.Exit(1)
+	}
 	return validate.Run(ctx, log, args)
 }
 

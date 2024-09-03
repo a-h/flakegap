@@ -31,6 +31,8 @@ type Args struct {
 	Image string
 	// BinaryCacheAddr is the listen address of the binary cache to use, defaults to localhost:41805
 	BinaryCacheAddr string
+	// Help shows usage and quits.
+	Help bool
 }
 
 func (a Args) Validate() error {

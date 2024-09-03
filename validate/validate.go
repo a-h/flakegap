@@ -20,6 +20,8 @@ type Args struct {
 	ExportFileName string
 	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
 	Image string
+	// Help shows usage and quits.
+	Help bool
 }
 
 func (a Args) Validate() error {
