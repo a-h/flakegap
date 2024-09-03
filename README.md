@@ -23,13 +23,13 @@ Import the `nix-export.tar.gz` file into the target environment along with the F
 ```bash
 mkdir nix-export
 tar -xzf nix-export.tar.gz --directory ./nix-export
-nix copy --all --offline --impure --no-check-sigs --from file://$PWD/nix-export/
+nix copy --all --offline --impure --no-check-sigs --from file://$PWD/nix-export/nix-store
 ```
 
 Use the flake as normal.
 
 ```bash
-cd ./flake-source-code
+cd ./nix-export/code
 nix develop
 nix build
 ```
