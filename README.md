@@ -219,10 +219,24 @@ nix develop
 ./deps-update.sh
 ```
 
-### docker-build
+### docker-build-local-all
+
+This requires the containerd setting to be enabled, since by default the local Docker store can't store multiple architectures.
 
 ```bash
 docker buildx build --load --platform linux/amd64,linux/arm64 -t ghcr.io/a-h/flakegap:local .
+```
+
+### docker-build-local-amd64
+
+```bash
+docker buildx build --load --platform linux/amd64 -t ghcr.io/a-h/flakegap:local .
+```
+
+### docker-build-local-arm64
+
+```bash
+docker buildx build --load --platform linux/arm64 -t ghcr.io/a-h/flakegap:local .
 ```
 
 ### docker-run

@@ -30,7 +30,7 @@ jobs:
       - name: docker-build
         uses: joerdav/run-xc@1.0.0
         with:
-          task: docker-build
+          task: docker-build-local-amd64
 
       - name: test
         uses: joerdav/run-xc@1.0.0
