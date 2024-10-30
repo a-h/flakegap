@@ -13,8 +13,9 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$(git describe --tags
 
 FROM ubuntu:latest AS deps
 
-RUN apt update
-RUN apt -y install wget
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update
+RUN apt-get -y install wget
 
 # Download installers.
 RUN mkdir /deps
@@ -29,8 +30,9 @@ FROM ubuntu:latest
 
 # Install Nix.
 
-RUN apt update
-RUN apt -y install curl xz-utils sudo git vim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update
+RUN apt-get install -y curl xz-utils sudo git vim
 
 RUN mkdir /deps
 COPY --from=deps /deps/nix-installer /deps/nix-installer
