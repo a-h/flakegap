@@ -57,7 +57,7 @@ func (p Platform) String() string {
 }
 
 func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExportPath, binaryCacheURL string, platform Platform) (err error) {
-	cli, err := client.NewClientWithOpts()
+	cli, err := client.NewClientWithOpts(client.WithVersion("1.45"))
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
 	}
