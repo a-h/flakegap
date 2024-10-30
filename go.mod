@@ -3,7 +3,7 @@ module github.com/a-h/flakegap
 go 1.21
 
 require (
-	github.com/docker/docker v27.3.1+incompatible
+	github.com/docker/docker v27.1.1+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/nix-community/go-nix v0.0.0-20231219074122-93cb24a86856
