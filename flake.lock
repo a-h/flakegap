@@ -113,11 +113,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1717050755,
-        "narHash": "sha256-C9IEHABulv2zEDFA+Bf0E1nmfN4y6MIUe5eM2RCrDC0=",
+        "lastModified": 1729448365,
+        "narHash": "sha256-oquZeWTYWTr5IxfwEzgsxjtD8SSFZYLdO9DaQb70vNU=",
         "owner": "nix-community",
         "repo": "gomod2nix",
-        "rev": "31b6d2e40b36456e792cd6cf50d5a8ddd2fa59a1",
+        "rev": "5d387097aa716f35dd99d848dc26d8d5b62a104c",
         "type": "github"
       },
       "original": {
@@ -168,7 +168,6 @@
     },
     "nixpkgs": {
       "locked": {
-<<<<<<< HEAD
         "lastModified": 1709083642,
         "narHash": "sha256-7kkJQd4rZ+vFrzWu8sTRtta5D1kBG0LSRYAfhtmMlSo=",
         "owner": "NixOS",
@@ -201,12 +200,8 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1721226092,
-        "narHash": "sha256-UBvzVpo5sXSi2S/Av+t+Q+C2mhMIw/LBEZR+d6NMjws=",
-=======
         "lastModified": 1730137625,
         "narHash": "sha256-9z8oOgFZiaguj+bbi3k4QhAD6JabWrnv7fscC/mt0KE=",
->>>>>>> 56ecd95 (feat: support building x86_64 on aarch64 machines, including Darwin)
         "owner": "NixOS",
         "repo": "nixpkgs",
         "rev": "64b80bfb316b57cdb8919a9110ef63393d74382a",
@@ -283,11 +278,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1717601811,
-        "narHash": "sha256-+XQvDRXpzjBdZI3JGKP6SAOYXM+JSEbWL5kqtCwRJXE=",
+        "lastModified": 1726502039,
+        "narHash": "sha256-Zbzr88XKEpLx2D6jaq6KT8S5Cxe76Q9BeYpOcy3fXQk=",
         "owner": "joerdav",
         "repo": "xc",
-        "rev": "f8e8e658978d6c9fe49c27b684ca7375a74deef1",
+        "rev": "6183dd54f074aa3a1b3efb716a04966e4b8bf6e5",
         "type": "github"
       },
       "original": {
