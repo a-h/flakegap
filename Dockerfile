@@ -1,4 +1,4 @@
-FROM golang:1.22 AS build-stage
+FROM golang:1.23 AS build-stage
 
 # Build the Go application runtime.
 
@@ -20,7 +20,7 @@ RUN apt -y install wget
 RUN mkdir /deps
 WORKDIR /deps
 COPY deps.sha256sum deps.sha256sum
-RUN wget https://github.com/DeterminateSystems/nix-installer/releases/download/v0.20.2/nix-installer-`arch`-linux
+RUN wget https://github.com/DeterminateSystems/nix-installer/releases/download/v0.27.0/nix-installer-`arch`-linux
 RUN sha256sum -c deps.sha256sum --ignore-missing
 RUN mv nix-installer-`arch`-linux nix-installer
 RUN ls /deps
@@ -36,9 +36,11 @@ RUN mkdir /deps
 COPY --from=deps /deps/nix-installer /deps/nix-installer
 
 # https://github.com/DeterminateSystems/nix-installer?tab=readme-ov-file#in-a-container
+# https://github.com/DeterminateSystems/nix-installer/issues/324#issuecomment-1491888268
 RUN chmod +x /deps/nix-installer
 RUN /deps/nix-installer install linux \
   --extra-conf "sandbox = false" \
+  --extra-conf "filter-syscalls = false" \
   --init none \
   --no-confirm
 ENV PATH="${PATH}:/nix/var/nix/profiles/default/bin"

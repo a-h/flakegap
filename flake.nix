@@ -60,11 +60,13 @@
       # Development tools used.
       devTools = { system, pkgs }: [
         pkgs.crane
+        pkgs.docker
         pkgs.gh
         pkgs.git
         pkgs.go
         pkgs.nix
-        xc.packages.${system}.xc
+        pkgs.wget
+        pkgs.xc
         gomod2nix.legacyPackages.${system}.gomod2nix
       ];
     in

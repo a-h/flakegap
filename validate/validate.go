@@ -20,8 +20,13 @@ type Args struct {
 	ExportFileName string
 	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
 	Image string
+<<<<<<< HEAD
 	// Help shows usage and quits.
 	Help bool
+=======
+	// Platform is the platform to run the container on, e.g. linux/amd64 (default).
+	Platform string
+>>>>>>> 56ecd95 (feat: support building x86_64 on aarch64 machines, including Darwin)
 }
 
 func (a Args) Validate() error {
@@ -38,6 +43,11 @@ func (a Args) Validate() error {
 func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	log.Info("Extracting nix export to temp dir")
 
+	platform, err := container.NewPlatform(args.Platform)
+	if err != nil {
+		return err
+	}
+
 	tgtPath, err := os.MkdirTemp("", "flakegap")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -49,11 +59,11 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	log.Info("Extracted archive", slog.Int("files", m.Files), slog.Int("dirs", m.Dirs))
 
-	log.Info("Running build in airgapped container without binary cache")
+	log.Info("Running build in airgapped container without binary cache", slog.String("platform", platform.String()), slog.String("image", args.Image))
 
 	var substituter string
 	codePath := filepath.Join(tgtPath, "source")
-	if err = container.Run(ctx, log, args.Image, "validate", codePath, tgtPath, substituter); err != nil {
+	if err = container.Run(ctx, log, args.Image, "validate", codePath, tgtPath, substituter, platform); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
@@ -81,6 +91,9 @@ func unarchive(ctx context.Context, src, dst string) (m Metrics, err error) {
 
 	tarReader := tar.NewReader(gzipReader)
 	for {
+		if ctx.Err() != nil {
+			return m, ctx.Err()
+		}
 		header, err := tarReader.Next()
 		if err == io.EOF {
 			break

@@ -89,6 +89,7 @@ func exportCmd(ctx context.Context, log *slog.Logger) error {
 	cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)
 	cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
+	cmdFlags.StringVar(&args.Platform, "platform", "amd64", "Platform to run the export on, e.g. amd64 / x86_64, arm64 / aarch64")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
 	cmdFlags.StringVar(&args.BinaryCacheAddr, "binary-cache-addr", "localhost:41805", "Listen address for Nix binary cache")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
@@ -107,6 +108,7 @@ func validateCmd(ctx context.Context, log *slog.Logger) error {
 	args := validate.Args{}
 	cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "nix-export.tar.gz", "Filename of the nix-export.tar.gz file, defaults to nix-export.tar.gz")
+	cmdFlags.StringVar(&args.Platform, "platform", "amd64", "Platform to run the export on, e.g. amd64 / x86_64, arm64 / aarch64")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])

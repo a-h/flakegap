@@ -18,13 +18,51 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExportPath, binaryCacheURL string) (err error) {
+var linuxAMD64 = Platform{
+	Architecture: "amd64",
+	OS:           "linux",
+}
+
+var linuxARM64 = Platform{
+	Architecture: "arm64",
+	OS:           "linux",
+}
+
+var platforms = map[string]Platform{
+	"linux/amd64":   linuxAMD64,
+	"amd64":         linuxAMD64,
+	"x86_64":        linuxAMD64,
+	"x86_64-linux":  linuxAMD64,
+	"linux/arm64":   linuxARM64,
+	"arm64":         linuxARM64,
+	"aarch64":       linuxARM64,
+	"aarch64-linux": linuxARM64,
+}
+
+func NewPlatform(s string) (Platform, error) {
+	p, ok := platforms[s]
+	if !ok {
+		return Platform{}, fmt.Errorf("unknown platform %q", s)
+	}
+	return p, nil
+}
+
+type Platform struct {
+	Architecture string
+	OS           string
+}
+
+func (p Platform) String() string {
+	return fmt.Sprintf("%s/%s", p.OS, p.Architecture)
+}
+
+func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExportPath, binaryCacheURL string, platform Platform) (err error) {
 	cli, err := client.NewClientWithOpts()
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	if err := pullImage(ctx, cli, imageRef); err != nil {
+	if err := pullImage(ctx, cli, imageRef, platform); err != nil {
 		log.Warn("failed to pull image", slog.String("image", imageRef), slog.Any("error", err))
 	}
 
@@ -71,9 +109,12 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 		hconf.NetworkMode = "host"
 	}
 	nconf := &network.NetworkingConfig{}
-	platform := &ocispec.Platform{}
+	p := &ocispec.Platform{
+		Architecture: platform.Architecture,
+		OS:           platform.OS,
+	}
 	var containerName string
-	cont, err := cli.ContainerCreate(ctx, cconf, hconf, nconf, platform, containerName)
+	cont, err := cli.ContainerCreate(ctx, cconf, hconf, nconf, p, containerName)
 	if err != nil {
 		return fmt.Errorf("failed to create container: %w", err)
 	}
@@ -127,8 +168,10 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 	return errors.Join(runErr, logErr)
 }
 
-func pullImage(ctx context.Context, cli *client.Client, imageRef string) (err error) {
-	pull, err := cli.ImagePull(ctx, imageRef, image.PullOptions{})
+func pullImage(ctx context.Context, cli *client.Client, imageRef string, platform Platform) (err error) {
+	pull, err := cli.ImagePull(ctx, imageRef, image.PullOptions{
+		Platform: platform.String(),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to pull image: %w", err)
 	}
