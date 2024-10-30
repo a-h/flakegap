@@ -31,13 +31,10 @@ type Args struct {
 	Image string
 	// BinaryCacheAddr is the listen address of the binary cache to use, defaults to localhost:41805
 	BinaryCacheAddr string
-<<<<<<< HEAD
 	// Help shows usage and quits.
 	Help bool
-=======
 	// Platform is the platform to run the container on, e.g. linux/amd64 (default).
 	Platform string
->>>>>>> 56ecd95 (feat: support building x86_64 on aarch64 machines, including Darwin)
 }
 
 func (a Args) Validate() error {
@@ -53,6 +50,9 @@ func (a Args) Validate() error {
 	}
 	if a.BinaryCacheAddr == "" {
 		errs = append(errs, fmt.Errorf("binary-cache-addr is required"))
+	}
+	if a.Platform == "" {
+		errs = append(errs, fmt.Errorf("platform is required"))
 	}
 	return errors.Join(errs...)
 }

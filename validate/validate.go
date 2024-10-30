@@ -20,13 +20,10 @@ type Args struct {
 	ExportFileName string
 	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
 	Image string
-<<<<<<< HEAD
 	// Help shows usage and quits.
 	Help bool
-=======
 	// Platform is the platform to run the container on, e.g. linux/amd64 (default).
 	Platform string
->>>>>>> 56ecd95 (feat: support building x86_64 on aarch64 machines, including Darwin)
 }
 
 func (a Args) Validate() error {
@@ -36,6 +33,9 @@ func (a Args) Validate() error {
 	}
 	if a.Image == "" {
 		errs = append(errs, fmt.Errorf("image is required"))
+	}
+	if a.Platform == "" {
+		errs = append(errs, fmt.Errorf("platform is required"))
 	}
 	return errors.Join(errs...)
 }
