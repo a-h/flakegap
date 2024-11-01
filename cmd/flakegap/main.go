@@ -133,5 +133,8 @@ Usage:
     - Validates that the export worked by running a build in an airgapped container.
 
   flakegap serve
-    - Serve a local binary cache for the airgapped system to use (started automatically by export).`)
+    - Serve a local binary cache for the airgapped system to use (started automatically by export).
+
+  flakegap version
+    - Print the version of flakegap.`)
 }

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nix.url = "github:nixos/nix/2.23.1";
+    nix.url = "github:nixos/nix/2.24.10";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
@@ -32,6 +32,7 @@
           overlays = [
             (self: super: {
               nix = nix.packages.${system}.nix;
+              xc = xc.packages.${system}.xc;
             })
           ];
         };
