@@ -21,7 +21,7 @@ RUN apt-get -y install wget
 RUN mkdir /deps
 WORKDIR /deps
 COPY deps.sha256sum deps.sha256sum
-RUN wget https://github.com/DeterminateSystems/nix-installer/releases/download/v0.27.0/nix-installer-`arch`-linux
+RUN wget https://github.com/DeterminateSystems/nix-installer/releases/download/v0.27.1/nix-installer-`arch`-linux
 RUN sha256sum -c deps.sha256sum --ignore-missing
 RUN mv nix-installer-`arch`-linux nix-installer
 RUN ls /deps
