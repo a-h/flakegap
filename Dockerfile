@@ -9,7 +9,7 @@ RUN go mod download
 
 COPY . ./
 
-RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty)" ./cmd/runtime
+RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty)" -o /app/validatecmd ./cmd/validate
 
 FROM ubuntu:latest AS deps
 
@@ -41,7 +41,6 @@ COPY --from=deps /deps/nix-installer /deps/nix-installer
 # https://github.com/DeterminateSystems/nix-installer/issues/324#issuecomment-1491888268
 RUN chmod +x /deps/nix-installer
 RUN /deps/nix-installer install linux \
-  --extra-conf "sandbox = false" \
   --extra-conf "filter-syscalls = false" \
   --init none \
   --no-confirm
@@ -56,7 +55,7 @@ WORKDIR /code
 # where source code will be mounted.
 RUN git config --global --add safe.directory /code
 
-# Copy the runtime app.
-COPY --from=build-stage /app/runtime /usr/local/bin/runtime
+# Copy the validate app.
+COPY --from=build-stage /app/validatecmd /usr/local/bin/validate
 
-ENTRYPOINT [ "/usr/local/bin/runtime" ]
+ENTRYPOINT [ "/usr/local/bin/validate" ]

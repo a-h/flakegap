@@ -201,10 +201,10 @@ gomod2nix
 nix build
 ```
 
-### build-runtime
+### build-validate
 
 ```bash
-nix build .#runtime
+nix build .#validate
 ```
 
 ### develop
@@ -245,6 +245,22 @@ docker buildx build --load --platform linux/arm64 -t ghcr.io/a-h/flakegap:local 
 docker run -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:latest
 ```
 
+### docker-run-interactive
+
+interactive: true
+
+```bash
+docker run -it --rm --entrypoint=/bin/bash -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:latest
+```
+
+### docker-run-interactive-local
+
+interactive: true
+
+```bash
+docker run -it --rm --entrypoint=/bin/bash -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:local
+```
+
 ### serve-run
 
 ```bash
@@ -253,9 +269,24 @@ nix run .#default -- serve
 
 ### test
 
+interactive: true
+
 ```bash
+echo "Testing Nix build..."
 echo "Exporting Flake requirements..."
-nix run .#default -- export -image ghcr.io/a-h/flakegap:local
+nix run .#default -- export
 echo "Validating Flake requirements..."
 nix run .#default -- validate -image ghcr.io/a-h/flakegap:local
+```
+
+### test-local
+
+interactive: true
+
+```bash
+echo "Testing Go build without Nix..."
+echo "Exporting Flake requirements..."
+go run ./cmd/flakegap export
+echo "Validating Flake requirements..."
+go run ./cmd/flakegap validate -image ghcr.io/a-h/flakegap:local
 ```

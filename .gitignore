@@ -4,3 +4,7 @@ nix-export
 nix-export.tar.gz
 # Ignore build outputs.
 result
+# Coverage.
+coverage.out
+# Mac stuff.
+.DS_Store

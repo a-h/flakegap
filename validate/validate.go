@@ -22,7 +22,9 @@ type Args struct {
 	Image string
 	// Help shows usage and quits.
 	Help bool
-	// Platform is the platform to run the container on, e.g. linux/amd64 (default).
+	// Architecture is the architecture to build for, e.g. x86_64, aarch64.
+	Architecture string
+	// Platform is the platform to run the container on, e.g. linux, darwin.
 	Platform string
 }
 
@@ -37,13 +39,16 @@ func (a Args) Validate() error {
 	if a.Platform == "" {
 		errs = append(errs, fmt.Errorf("platform is required"))
 	}
+	if a.Architecture == "" {
+		errs = append(errs, fmt.Errorf("architecture is required"))
+	}
 	return errors.Join(errs...)
 }
 
 func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	log.Info("Extracting nix export to temp dir")
 
-	platform, err := container.NewPlatform(args.Platform)
+	containerPlatform, err := container.NewPlatform(args.Platform)
 	if err != nil {
 		return err
 	}
@@ -59,11 +64,10 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	log.Info("Extracted archive", slog.Int("files", m.Files), slog.Int("dirs", m.Dirs))
 
-	log.Info("Running build in airgapped container without binary cache", slog.String("platform", platform.String()), slog.String("image", args.Image))
+	log.Info("Running build in airgapped container without binary cache", slog.String("platform", containerPlatform.String()), slog.String("image", args.Image))
 
-	var substituter string
 	codePath := filepath.Join(tgtPath, "source")
-	if err = container.Run(ctx, log, args.Image, "validate", codePath, tgtPath, substituter, platform); err != nil {
+	if err = container.Run(ctx, log, containerPlatform, args.Image, codePath, tgtPath, args.Architecture, args.Platform); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 
