@@ -94,16 +94,17 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		return fmt.Errorf("failed to get nixpkgs reference: %w", err)
 	}
 	suffixes := []string{
-		fmt.Sprintf("#legacyPackages.%s-%s.stdenv", args.Architecture, args.Platform),          // Required for pretty much everything.
 		fmt.Sprintf("#legacyPackages.%s-%s.bashInteractive", args.Architecture, args.Platform), // Required for nix develop.
 	}
 	for _, nixpkgsRef := range nixpkgsRefs {
 		for _, suffix := range suffixes {
 			nixpkgsRefWithSuffix := nixpkgsRef + suffix
 			log.Info("Copying nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix))
-			if err = nixcmd.CopyToAll(os.Stdout, os.Stderr, targetStore, nixpkgsRefWithSuffix); err != nil {
+			realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, nixpkgsRefWithSuffix)
+			if err != nil {
 				return fmt.Errorf("failed to copy nixpkgs to %q: %w", targetStore, err)
 			}
+			log.Info("Copied nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix), slog.Int("realisedPaths", realisedPathCount))
 		}
 	}
 
@@ -116,10 +117,13 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		}
 		// nix copy --to file://$PWD/export .#packages.x86_64-linux.default
 		// nix copy --derivation --to file://$PWD/export .#packages.x86_64-linux.default
+		// nix copy --to file://$PWD/nix-export/nix-store `nix-store --realise $(nix path-info --recursive --derivation .#)`
 		log.Info("Copying Nix closures to target", slog.String("ref", ref), slog.String("target", targetStore))
-		if err = nixcmd.CopyToAll(os.Stdout, os.Stderr, targetStore, ref); err != nil {
+		realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, ref)
+		if err != nil {
 			return fmt.Errorf("failed to copy %q to %q: %w", ref, targetStore, err)
 		}
+		log.Info("Copied Nix closures to target", slog.String("ref", ref), slog.Int("realisedPaths", realisedPathCount))
 		targetDirParts := strings.Split(strings.TrimPrefix(ref, ".#"), ".")
 		target := filepath.Join(append([]string{nixExportPath, "outputs"}, targetDirParts...)...)
 		if err := os.MkdirAll(target, 0755); err != nil {

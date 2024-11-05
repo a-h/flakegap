@@ -41,17 +41,36 @@ func CopyFrom(stdout, stderr io.Writer, codeDir, sourceStore string, derivation 
 }
 
 // CopyToAll copies the paths from the local nix store to the targetStore.
-func CopyToAll(stdout, stderr io.Writer, targetStore, path string) (err error) {
-	if err := CopyTo(stdout, stderr, targetStore, path, true); err != nil {
-		return fmt.Errorf("failed to copy derivation: %w", err)
+// It copies both the derivations and the paths.
+// Then copies the realised derivations.
+func CopyToAll(stdout, stderr io.Writer, codeDir, targetStore, ref string) (realisedPathCount int, err error) {
+	if err := CopyTo(stdout, stderr, codeDir, targetStore, true, ref); err != nil {
+		return realisedPathCount, fmt.Errorf("failed to copy derivation: %w", err)
 	}
-	if err := CopyTo(stdout, stderr, targetStore, path, false); err != nil {
-		return fmt.Errorf("failed to copy path: %w", err)
+	if err := CopyTo(stdout, stderr, codeDir, targetStore, false, ref); err != nil {
+		return realisedPathCount, fmt.Errorf("failed to copy path: %w", err)
 	}
-	return nil
+	drvs, err := PathInfo(stdout, stderr, codeDir, true, true, ref)
+	if err != nil {
+		return realisedPathCount, fmt.Errorf("failed to get path info: %w", err)
+	}
+	if len(drvs) == 0 {
+		return realisedPathCount, nil
+	}
+	realisedPaths, err := NixStoreRealise(stdout, stderr, targetStore, drvs)
+	if err != nil {
+		return realisedPathCount, fmt.Errorf("failed to realise derivations: %w", err)
+	}
+	if len(realisedPaths) == 0 {
+		return realisedPathCount, nil
+	}
+	if err = CopyTo(stdout, stderr, codeDir, targetStore, false, realisedPaths...); err != nil {
+		return realisedPathCount, fmt.Errorf("failed to copy realised paths: %w", err)
+	}
+	return len(realisedPaths), nil
 }
 
-func CopyTo(stdout, stderr io.Writer, targetStore, path string, derivation bool) (err error) {
+func CopyTo(stdout, stderr io.Writer, codeDir, targetStore string, derivation bool, paths ...string) (err error) {
 	nixPath, err := exec.LookPath("nix")
 	if err != nil {
 		return fmt.Errorf("failed to find nix on path: %v", err)
@@ -61,8 +80,9 @@ func CopyTo(stdout, stderr io.Writer, targetStore, path string, derivation bool)
 	if derivation {
 		args = append(args, "--derivation")
 	}
-	args = append(args, path)
+	args = append(args, paths...)
 	cmd := exec.Command(nixPath, args...)
+	cmd.Dir = codeDir
 
 	w, closer := ErrorBuffer(stdout, stderr)
 	cmd.Stderr = w
