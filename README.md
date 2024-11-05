@@ -4,7 +4,7 @@ Export a Flake's requirements so that they can be transferred across an airgap.
 
 ## How does it work?
 
-- Mounts the Flake code into a fresh Docker container, and runs all builds.
+- Invokes various Nix commands to run all builds, and copy all derivations and the realised paths of all derivations required to build the outputs.
 - Exports the Nix store from the container to a tarball.
 - Validates the build by importing the tarball, and running the build in a Docker container with no network access.
 
