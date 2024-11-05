@@ -67,6 +67,8 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	// # Copy the devshell contents.
 	// nix copy --to file://$PWD/export .#devShells.x86_64-linux.default
 	// nix copy --derivation --to file://$PWD/export .#devShells.x86_64-linux.default
+	// Copy realised paths.
+	// sudo nix copy --to file://$PWD/nix-export/nix-store `nix-store --realise $(nix path-info --recursive --derivation .#)`
 	// # Copy the flake inputs to the store.
 	// nix flake archive --to file://$PWD/export
 

@@ -50,13 +50,13 @@ func CopyToAll(stdout, stderr io.Writer, codeDir, targetStore, ref string) (real
 	if err := CopyTo(stdout, stderr, codeDir, targetStore, false, ref); err != nil {
 		return realisedPathCount, fmt.Errorf("failed to copy path: %w", err)
 	}
-	drvs, err := PathInfo(stdout, stderr, codeDir, true, true, ref)
+	// We need to copy the realised derivations of the thing we're trying to transfer so that we can build it.
+	// nix derivation show .# | jq -r '.[].inputDrvs | keys[]'
+	drvs, err := DerivationShow(stdout, stderr, codeDir, ref)
 	if err != nil {
-		return realisedPathCount, fmt.Errorf("failed to get path info: %w", err)
+		return realisedPathCount, fmt.Errorf("failed to get input derivations: %w", err)
 	}
-	if len(drvs) == 0 {
-		return realisedPathCount, nil
-	}
+	// nix-store --realise $paths_from_previous_command
 	realisedPaths, err := NixStoreRealise(stdout, stderr, targetStore, drvs)
 	if err != nil {
 		return realisedPathCount, fmt.Errorf("failed to realise derivations: %w", err)
@@ -64,6 +64,7 @@ func CopyToAll(stdout, stderr io.Writer, codeDir, targetStore, ref string) (real
 	if len(realisedPaths) == 0 {
 		return realisedPathCount, nil
 	}
+	// Copy the realised paths.
 	if err = CopyTo(stdout, stderr, codeDir, targetStore, false, realisedPaths...); err != nil {
 		return realisedPathCount, fmt.Errorf("failed to copy realised paths: %w", err)
 	}
