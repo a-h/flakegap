@@ -8,36 +8,44 @@ import (
 	"os/exec"
 )
 
-func PathInfo(stdout, stderr io.Writer, ref string) (path string, err error) {
+// nix copy --to file://$PWD/nix-export/nix-store `nix-store --realise $(nix path-info --recursive --derivation .#)`
+func PathInfo(stdout, stderr io.Writer, codeDir string, recursive, derivation bool, ref string) (paths []string, err error) {
 	nixPath, err := exec.LookPath("nix")
 	if err != nil {
-		return path, fmt.Errorf("failed to find nix on path: %w", err)
+		return paths, fmt.Errorf("failed to find nix on path: %w", err)
 	}
 
 	stdoutBuffer := new(bytes.Buffer)
 
-	cmd := exec.Command(nixPath, "path-info", "--impure", "--json", ref)
+	args := []string{"path-info", "--json"}
+	if recursive {
+		args = append(args, "--recursive")
+	}
+	if derivation {
+		args = append(args, "--derivation")
+	}
+	args = append(args, ref)
+	cmd := exec.Command(nixPath, args...)
 	cmd.Env = getEnv()
-	cmd.Stdout = io.MultiWriter(stdoutBuffer, stdout)
+	cmd.Stdout = stdoutBuffer
 	cmd.Stderr = stderr
-	cmd.Dir = "/code"
+	cmd.Dir = codeDir
 	if err = cmd.Run(); err != nil {
-		return path, fmt.Errorf("failed to run nix path-info: %w", err)
+		return paths, fmt.Errorf("failed to run nix path-info: %w", err)
 	}
 
 	// Parse the output.
 	var m map[string]any
 	err = json.Unmarshal(stdoutBuffer.Bytes(), &m)
 	if err != nil {
-		return path, fmt.Errorf("failed to parse nix path-info output: %w", err)
+		return paths, fmt.Errorf("failed to parse nix path-info output: %w", err)
 	}
-	if len(m) != 1 {
-		return path, fmt.Errorf("expected one path, got %d", len(m))
-	}
+	paths = make([]string, len(m))
+	var i int
 	for k := range m {
-		path = k
-		break
+		paths[i] = k
+		i++
 	}
 
-	return path, nil
+	return paths, nil
 }

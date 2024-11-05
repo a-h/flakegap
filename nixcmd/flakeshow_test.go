@@ -9,8 +9,10 @@ import (
 
 func TestFlakeShowDerivations(t *testing.T) {
 	tests := []struct {
-		input    string
-		expected []string
+		input        string
+		architecture string
+		platform     string
+		expected     []string
 	}{
 		{
 			input: `{
@@ -19,10 +21,16 @@ func TestFlakeShowDerivations(t *testing.T) {
 	      "default": {}
 	    },
 	    "aarch64-linux": {
-	      "default": {}
+	      "default": {
+	        "name": "github-runner-manager",
+	        "type": "derivation"
+	      }
 	    },
 	    "x86_64-darwin": {
-	      "default": {}
+	      "default": {
+	        "name": "github-runner-manager",
+	        "type": "derivation"
+	      }
 	    },
 	    "x86_64-linux": {
 	      "default": {
@@ -35,6 +43,8 @@ func TestFlakeShowDerivations(t *testing.T) {
 	    "type": "unknown"
 	  }
 	}`,
+			architecture: "x86_64",
+			platform:     "linux",
 			expected: []string{
 				".#packages.x86_64-linux.default",
 			},
@@ -43,13 +53,22 @@ func TestFlakeShowDerivations(t *testing.T) {
 			input: `{
   "devShells": {
     "aarch64-darwin": {
-      "default": {}
+      "default": {
+        "name": "nix-shell",
+        "type": "derivation"
+      }
     },
     "aarch64-linux": {
-      "default": {}
+      "default": {
+        "name": "nix-shell",
+        "type": "derivation"
+      }
     },
     "x86_64-darwin": {
-      "default": {}
+      "default": {
+        "name": "nix-shell",
+        "type": "derivation"
+      }
     },
     "x86_64-linux": {
       "default": {
@@ -68,8 +87,14 @@ func TestFlakeShowDerivations(t *testing.T) {
       "docker-image": {}
     },
     "x86_64-darwin": {
-      "default": {},
-      "docker-image": {}
+      "default": {
+        "name": "app",
+        "type": "derivation"
+      },
+      "docker-image": {
+        "name": "docker-image-app.tar.gz",
+        "type": "derivation"
+      }
     },
     "x86_64-linux": {
       "default": {
@@ -83,6 +108,8 @@ func TestFlakeShowDerivations(t *testing.T) {
     }
   }
 }`,
+			architecture: "x86_64",
+			platform:     "linux",
 			expected: []string{
 				".#devShells.x86_64-linux.default",
 				".#packages.x86_64-linux.default",
@@ -96,7 +123,7 @@ func TestFlakeShowDerivations(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to unmarshal json: %v", err)
 		}
-		actual := fso.Derivations()
+		actual := fso.Derivations(test.architecture, test.platform)
 		if diff := cmp.Diff(test.expected, actual); diff != "" {
 			t.Error(diff)
 		}

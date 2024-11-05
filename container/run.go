@@ -20,15 +20,15 @@ import (
 
 var linuxAMD64 = Platform{
 	Architecture: "amd64",
-	OS:           "linux",
+	Platform:     "linux",
 }
 
 var linuxARM64 = Platform{
 	Architecture: "arm64",
-	OS:           "linux",
+	Platform:     "linux",
 }
 
-var platforms = map[string]Platform{
+var dockerPlatforms = map[string]Platform{
 	"linux/amd64":   linuxAMD64,
 	"amd64":         linuxAMD64,
 	"x86_64":        linuxAMD64,
@@ -40,29 +40,29 @@ var platforms = map[string]Platform{
 }
 
 func NewPlatform(s string) (Platform, error) {
-	p, ok := platforms[s]
+	p, ok := dockerPlatforms[s]
 	if !ok {
-		return Platform{}, fmt.Errorf("unknown platform %q", s)
+		return Platform{}, fmt.Errorf("unknown docker platform %q", s)
 	}
 	return p, nil
 }
 
 type Platform struct {
 	Architecture string
-	OS           string
+	Platform     string
 }
 
 func (p Platform) String() string {
-	return fmt.Sprintf("%s/%s", p.OS, p.Architecture)
+	return fmt.Sprintf("%s/%s", p.Platform, p.Architecture)
 }
 
-func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExportPath, binaryCacheURL string, platform Platform) (err error) {
-	cli, err := client.NewClientWithOpts(client.WithVersion("1.45"))
+func Run(ctx context.Context, log *slog.Logger, containerPlatform Platform, imageRef, codePath, nixExportPath, architecture, platform string) (err error) {
+	cli, err := client.NewClientWithOpts(client.WithVersion("1.44"))
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	if err := pullImage(ctx, cli, imageRef, platform); err != nil {
+	if err := pullImage(ctx, cli, imageRef, containerPlatform); err != nil {
 		log.Warn("failed to pull image", slog.String("image", imageRef), slog.Any("error", err))
 	}
 
@@ -75,21 +75,14 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 		return fmt.Errorf("failed to get absolute target path: %w", err)
 	}
 
-	entrypoint := []string{"/usr/local/bin/runtime", mode}
-	if mode == "export" && binaryCacheURL != "" {
-		entrypoint = append(entrypoint, "-substituter", binaryCacheURL)
-	}
-
 	cconf := &container.Config{
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 		Image:        imageRef,
-		Entrypoint:   entrypoint,
+		Entrypoint:   []string{"/usr/local/bin/validate"},
 	}
-	if mode == "validate" {
-		cconf.NetworkDisabled = true
-	}
+	cconf.NetworkDisabled = true
 	hconf := &container.HostConfig{
 		Mounts: []mount.Mount{
 			{
@@ -104,14 +97,10 @@ func Run(ctx context.Context, log *slog.Logger, imageRef, mode, codePath, nixExp
 			},
 		},
 	}
-	if mode == "export" {
-		// Enable host-based networking so that the container can connect back to the host's binary cache.
-		hconf.NetworkMode = "host"
-	}
 	nconf := &network.NetworkingConfig{}
 	p := &ocispec.Platform{
-		Architecture: platform.Architecture,
-		OS:           platform.OS,
+		Architecture: containerPlatform.Architecture,
+		OS:           containerPlatform.Platform,
 	}
 	var containerName string
 	cont, err := cli.ContainerCreate(ctx, cconf, hconf, nconf, p, containerName)

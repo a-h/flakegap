@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
-func FlakeShow(stdout, stderr io.Writer) (op FlakeShowOutput, err error) {
+func FlakeShow(stdout, stderr io.Writer, codeDir string) (op FlakeShowOutput, err error) {
 	nixPath, err := exec.LookPath("nix")
 	if err != nil {
 		return op, fmt.Errorf("failed to find nix on path: %w", err)
@@ -17,11 +18,13 @@ func FlakeShow(stdout, stderr io.Writer) (op FlakeShowOutput, err error) {
 
 	stdoutBuffer := new(bytes.Buffer)
 
-	cmd := exec.Command(nixPath, "flake", "show", "--json")
-	cmd.Stdout = io.MultiWriter(stdoutBuffer, stdout)
-	cmd.Stderr = stderr
-	cmd.Dir = "/code"
-	if err = cmd.Run(); err != nil {
+	cmd := exec.Command(nixPath, "flake", "show", "--json", "--all-systems")
+	cmd.Dir = codeDir
+
+	w, closer := ErrorBuffer(stdout, stderr)
+	cmd.Stdout = io.MultiWriter(stdoutBuffer, w)
+	cmd.Stderr = w
+	if err = closer(cmd.Run()); err != nil {
 		return op, fmt.Errorf("failed to run nix flake show: %w", err)
 	}
 
@@ -35,19 +38,22 @@ func FlakeShow(stdout, stderr io.Writer) (op FlakeShowOutput, err error) {
 
 type FlakeShowOutput map[string]any
 
-func (fso FlakeShowOutput) Derivations() (matches []string) {
-	return findDerivation([]string{}, fso)
+// Derivations returns the derivations for the given architecture and platform, e.g. "x86_64-linux".
+func (fso FlakeShowOutput) Derivations(architecture, platform string) (matches []string) {
+	matches = findDerivation(fmt.Sprintf("%s-%s", architecture, platform), []string{}, fso)
+	slices.Sort(matches)
+	return matches
 }
 
-func findDerivation(parents []string, m map[string]any) (matches []string) {
+func findDerivation(architectureAndPlatform string, parents []string, m map[string]any) (matches []string) {
 	for k, v := range m {
-		if k == "type" && v == "derivation" {
+		if k == "type" && v == "derivation" && slices.Contains(parents, architectureAndPlatform) {
 			matches = append(matches, ".#"+strings.Join(parents, "."))
 			continue
 		}
 		parents := append([]string{}, append(parents, k)...)
 		if m, ok := v.(map[string]any); ok {
-			if children := findDerivation(parents, m); len(children) > 0 {
+			if children := findDerivation(architectureAndPlatform, parents, m); len(children) > 0 {
 				matches = append(matches, children...)
 			}
 		}

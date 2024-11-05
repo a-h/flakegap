@@ -33,6 +33,7 @@
             (self: super: {
               nix = nix.packages.${system}.nix;
               xc = xc.packages.${system}.xc;
+              gomod2nix = gomod2nix.legacyPackages.${system}.gomod2nix;
             })
           ];
         };
@@ -68,7 +69,7 @@
         pkgs.nix
         pkgs.wget
         pkgs.xc
-        gomod2nix.legacyPackages.${system}.gomod2nix
+        pkgs.gomod2nix
       ];
     in
     {
@@ -76,7 +77,7 @@
       # `nix build .#docker-image` builds the Docker container.
       packages = forAllSystems ({ system, pkgs }: {
         default = app { name = "flakegap"; pkgs = pkgs; system = system; version = self.sourceInfo.lastModifiedDate; };
-        runtime = app { name = "runtime"; pkgs = pkgs; system = system; version = self.sourceInfo.lastModifiedDate; };
+        validate = app { name = "validate"; pkgs = pkgs; system = system; version = self.sourceInfo.lastModifiedDate; };
       });
       # `nix develop` provides a shell containing required tools.
       # Run `gomod2nix` to update the `gomod2nix.toml` file if Go dependencies change.

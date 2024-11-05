@@ -4,13 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/a-h/flakegap/export"
-	"github.com/a-h/flakegap/nixserve"
+	"github.com/a-h/flakegap/sloghandler"
 	"github.com/a-h/flakegap/validate"
 )
 
@@ -23,22 +23,15 @@ func main() {
 	}
 
 	ctx := context.Background()
-	log := slog.New(slog.NewJSONHandler(os.Stderr, nil))
-
-	log = log.With(slog.String("version", version))
-	log = log.With(slog.String("flakegap", "client"))
-
 	var err error
 
 	switch os.Args[1] {
 	case "version":
 		fmt.Println(version)
-	case "serve":
-		err = serveCmd(ctx, log)
 	case "export":
-		err = exportCmd(ctx, log)
+		err = exportCmd(ctx)
 	case "validate":
-		err = validateCmd(ctx, log)
+		err = validateCmd(ctx)
 	default:
 		fmt.Printf("flakegap: unknown command %q\n", os.Args[1])
 		fmt.Println()
@@ -46,52 +39,46 @@ func main() {
 	}
 
 	if err != nil {
+		log := newLogger("error", false, os.Stderr)
 		log.Error("error", slog.Any("error", err))
 		os.Exit(1)
 	}
 }
 
-func serveCmd(ctx context.Context, log *slog.Logger) error {
-	server := &http.Server{}
-
-	cmdFlags := flag.NewFlagSet("serve", flag.ContinueOnError)
-	cmdFlags.StringVar(&server.Addr, "addr", "localhost:41805", "Listen address for Nix binary cache")
-	var help bool
-	cmdFlags.BoolVar(&help, "help", false, "Shows usage and quits")
-	cmdFlags.Parse(os.Args[2:])
-
-	if help {
-		cmdFlags.PrintDefaults()
-		os.Exit(1)
+func newLogger(logLevel string, verbose bool, stderr io.Writer) *slog.Logger {
+	if verbose {
+		logLevel = "debug"
 	}
-
-	// Start the binary cache.
-	h, closer, err := nixserve.New(log)
-	if err != nil {
-		return fmt.Errorf("failed to create nixserve: %w", err)
+	level := slog.LevelInfo.Level()
+	switch logLevel {
+	case "debug":
+		level = slog.LevelDebug.Level()
+	case "warn":
+		level = slog.LevelWarn.Level()
+	case "error":
+		level = slog.LevelError.Level()
 	}
-	server.Handler = h
-	defer closer()
+	log := slog.New(sloghandler.NewHandler(stderr, &slog.HandlerOptions{
+		AddSource: logLevel == "debug",
+		Level:     level,
+	}))
 
-	go func() {
-		log.Info("Starting server", slog.String("addr", server.Addr))
-		<-ctx.Done()
-		if err := server.Shutdown(ctx); err != nil {
-			log.Error("failed to shutdown server", slog.Any("error", err))
-		}
-	}()
-
-	return server.ListenAndServe()
+	log = log.With(slog.String("version", version))
+	log = log.With(slog.String("flakegap", "client"))
+	return log
 }
 
-func exportCmd(ctx context.Context, log *slog.Logger) error {
+func exportCmd(ctx context.Context) error {
 	args := export.Args{}
+	var verboseFlag bool
+	var logLevelFlag string
 	cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)
 	cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
-	cmdFlags.StringVar(&args.Platform, "platform", "amd64", "Platform to run the export on, e.g. amd64 / x86_64, arm64 / aarch64")
-	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
-	cmdFlags.StringVar(&args.BinaryCacheAddr, "binary-cache-addr", "localhost:41805", "Listen address for Nix binary cache")
+	cmdFlags.StringVar(&args.Architecture, "architecture", "x86_64", "Architecture to build for, e.g. x86_64, aarch64")
+	cmdFlags.StringVar(&args.Platform, "platform", "linux", "Platform to build for, e.g. linux, darwin")
+	cmdFlags.BoolVar(&verboseFlag, "v", false, "")
+	cmdFlags.StringVar(&logLevelFlag, "log-level", "info", "")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
 	if args.ExportFileName == "" {
@@ -101,21 +88,27 @@ func exportCmd(ctx context.Context, log *slog.Logger) error {
 		cmdFlags.PrintDefaults()
 		os.Exit(1)
 	}
+	log := newLogger(logLevelFlag, verboseFlag, os.Stderr)
 	return export.Run(ctx, log, args)
 }
 
-func validateCmd(ctx context.Context, log *slog.Logger) error {
+func validateCmd(ctx context.Context) error {
 	args := validate.Args{}
+	var verboseFlag bool
+	var logLevelFlag string
 	cmdFlags := flag.NewFlagSet("validate", flag.ContinueOnError)
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "nix-export.tar.gz", "Filename of the nix-export.tar.gz file, defaults to nix-export.tar.gz")
 	cmdFlags.StringVar(&args.Platform, "platform", "amd64", "Platform to run the export on, e.g. amd64 / x86_64, arm64 / aarch64")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
+	cmdFlags.BoolVar(&verboseFlag, "v", false, "")
+	cmdFlags.StringVar(&logLevelFlag, "log-level", "info", "")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
 	if args.Help {
 		cmdFlags.PrintDefaults()
 		os.Exit(1)
 	}
+	log := newLogger(logLevelFlag, verboseFlag, os.Stderr)
 	return validate.Run(ctx, log, args)
 }
 

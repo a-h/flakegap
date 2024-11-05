@@ -8,16 +8,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
+	"strings"
 	"sync"
-	"time"
 
-	"github.com/a-h/flakegap/container"
-	"github.com/a-h/flakegap/nixserve"
+	"github.com/a-h/flakegap/nixcmd"
+	"github.com/dustin/go-humanize"
 	"github.com/nix-community/go-nix/pkg/narinfo"
 	cp "github.com/otiai10/copy"
 )
@@ -27,14 +25,12 @@ type Args struct {
 	Code string
 	// ExportFileName is the path to write the output to, e.g. /tmp/nix-export.tar.gz.
 	ExportFileName string
-	// Image is the image to run, defaults to ghcr.io/a-h/flakegap:latest.
-	Image string
-	// BinaryCacheAddr is the listen address of the binary cache to use, defaults to localhost:41805
-	BinaryCacheAddr string
+	// Architecture to build for.
+	Architecture string
+	// Platform to build for.
+	Platform string
 	// Help shows usage and quits.
 	Help bool
-	// Platform is the platform to run the container on, e.g. linux/amd64 (default).
-	Platform string
 }
 
 func (a Args) Validate() error {
@@ -45,11 +41,8 @@ func (a Args) Validate() error {
 	if a.ExportFileName == "" {
 		errs = append(errs, fmt.Errorf("export-filename is required"))
 	}
-	if a.Image == "" {
-		errs = append(errs, fmt.Errorf("image is required"))
-	}
-	if a.BinaryCacheAddr == "" {
-		errs = append(errs, fmt.Errorf("binary-cache-addr is required"))
+	if a.Architecture == "" {
+		errs = append(errs, fmt.Errorf("architecture is required"))
 	}
 	if a.Platform == "" {
 		errs = append(errs, fmt.Errorf("platform is required"))
@@ -60,75 +53,123 @@ func (a Args) Validate() error {
 func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	var wg sync.WaitGroup
 
-	platform, err := container.NewPlatform(args.Platform)
-	if err != nil {
-		return err
-	}
-
-	log.Info("Starting binary cache")
-
-	binaryCacheURL := (&url.URL{
-		Scheme:   "http",
-		Host:     args.BinaryCacheAddr,
-		RawQuery: "trusted=1",
-	}).String()
-
-	server := &http.Server{
-		Addr: args.BinaryCacheAddr,
-	}
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		h, closer, err := nixserve.New(log)
-		if err != nil {
-			log.Error("Failed to create nixserve", slog.Any("error", err))
-			return
-		}
-		defer closer()
-		server.Handler = h
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error("Failed to start binary cache", slog.Any("error", err))
-		}
-	}()
-
-	log.Info("Waiting for binary cache to start...")
-
-loop:
-	for i := 0; i < 120; i++ {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context cancelled")
-		case <-time.After(1 * time.Second):
-			_, err := http.Get(binaryCacheURL)
-			if err != nil {
-				log.Info("Binary cache not ready", slog.Any("error", err))
-				continue loop
-			}
-			log.Info("Binary cache ready")
-			break loop
-		}
-	}
-
-	log.Info("Running container", slog.String("platform", platform.String()), slog.String("image", args.Image))
-
 	nixExportPath, err := os.MkdirTemp("", "flakegap")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(nixExportPath)
 
-	if err = container.Run(ctx, log, args.Image, "export", args.Code, nixExportPath, binaryCacheURL, platform); err != nil {
-		return fmt.Errorf("failed to run container: %w", err)
+	// export NIXPKGS_COMMIT=`jq -r '.nodes.[.nodes.[.root].inputs.nixpkgs].locked | "\(.type):\(.owner)/\(.repo)/\(.rev)"' flake.lock`
+	// nix copy --to file://$PWD/export "$NIXPKGS_COMMIT#legacyPackages.x86_64-linux.bashInteractive"
+	// # Copy the packages.
+	// nix copy --to file://$PWD/export .#packages.x86_64-linux.default
+	// nix copy --derivation --to file://$PWD/export .#packages.x86_64-linux.default
+	// # Copy the devshell contents.
+	// nix copy --to file://$PWD/export .#devShells.x86_64-linux.default
+	// nix copy --derivation --to file://$PWD/export .#devShells.x86_64-linux.default
+	// Copy realised paths of inputs to the derivation so that we can build it.
+	// export paths=$(nix derivation show .# | jq -r '.[].inputDrvs | keys[]')
+	// export realised_paths=$(nix-store --realise $paths)
+	// nix copy --to file://$PWD/export $realised_paths
+	// # Copy the flake inputs to the store.
+	// nix flake archive --to file://$PWD/export
+
+	targetStore := (&url.URL{
+		Scheme: "file",
+		Path:   filepath.Join(nixExportPath, "nix-store"),
+	}).String()
+
+	op, err := nixcmd.FlakeShow(os.Stdout, os.Stderr, args.Code)
+	if err != nil {
+		return fmt.Errorf("failed to gather nix outputs: %w", err)
 	}
+	drvs := op.Derivations(args.Architecture, args.Platform)
+
+	log.Info("Building", slog.Any("outputs", drvs), slog.String("architecture", args.Architecture), slog.String("platform", args.Platform))
+
+	f, err := os.Open(filepath.Join(args.Code, "flake.lock"))
+	if err != nil {
+		return fmt.Errorf("failed to open flake.lock: %w", err)
+	}
+	defer f.Close()
+	// export NIXPKGS_COMMIT=`jq -r '.nodes.[.nodes.[.root].inputs.nixpkgs].locked | "\(.type):\(.owner)/\(.repo)/\(.rev)"' flake.lock`
+	// nix copy --to file://$PWD/export "$NIXPKGS_COMMIT#legacyPackages.x86_64-linux.bashInteractive"
+	nixpkgsRef, err := nixcmd.GetNixpkgsReference(f)
+	if err != nil {
+		return fmt.Errorf("failed to get nixpkgs reference: %w", err)
+	}
+	suffixes := []string{
+		fmt.Sprintf("#legacyPackages.%s-%s.bashInteractive", args.Architecture, args.Platform), // Required for nix develop.
+	}
+	for _, suffix := range suffixes {
+		nixpkgsRefWithSuffix := nixpkgsRef + suffix
+		log.Info("Copying nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix))
+		realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, nixpkgsRefWithSuffix)
+		if err != nil {
+			return fmt.Errorf("failed to copy nixpkgs to %q: %w", targetStore, err)
+		}
+		log.Info("Copied nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix), slog.Int("realisedPaths", realisedPathCount))
+	}
+
+	for i, ref := range drvs {
+		log.Info("Building", slog.String("ref", ref))
+		// nix build <ref>
+		if err := nixcmd.Build(os.Stdout, os.Stderr, args.Code, ref); err != nil {
+			log.Error("failed to build", slog.Any("error", err))
+			return fmt.Errorf("failed to build %q: %w", ref, err)
+		}
+		// nix copy --to file://$PWD/export .#packages.x86_64-linux.default
+		// nix copy --derivation --to file://$PWD/export .#packages.x86_64-linux.default
+		// nix copy --to file://$PWD/nix-export/nix-store `nix-store --realise $(nix path-info --recursive --derivation .#)`
+		log.Info("Copying Nix closures to target", slog.String("ref", ref), slog.String("target", targetStore))
+		realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, ref)
+		if err != nil {
+			return fmt.Errorf("failed to copy %q to %q: %w", ref, targetStore, err)
+		}
+		log.Info("Copied Nix closures to target", slog.String("ref", ref), slog.Int("realisedPaths", realisedPathCount))
+		targetDirParts := strings.Split(strings.TrimPrefix(ref, ".#"), ".")
+		target := filepath.Join(append([]string{nixExportPath, "outputs"}, targetDirParts...)...)
+		if err := os.MkdirAll(target, 0755); err != nil {
+			return fmt.Errorf("failed to create outputs directory %q: %w", target, err)
+		}
+		evaluatedPath, err := filepath.EvalSymlinks("./result")
+		if err != nil {
+			return fmt.Errorf("failed to evaluate symlinks for %q: %w", "./result", err)
+		}
+		fi, err := os.Stat(evaluatedPath)
+		if err != nil {
+			return fmt.Errorf("failed to stat evaluated result path %q: %w", evaluatedPath, err)
+		}
+		if !fi.IsDir() {
+			target = filepath.Join(target, "result")
+		}
+		log.Info("Copying build outputs to target", slog.String("ref", ref), slog.String("target", target))
+		opt := cp.Options{
+			OnSymlink: func(src string) cp.SymlinkAction {
+				return cp.Deep
+			},
+			Sync: true,
+		}
+		if err := cp.Copy("./result", target, opt); err != nil {
+			return fmt.Errorf("failed to copy output %q to %q: %w", "./result", target, err)
+		}
+		log.Info("Completed operation", slog.String("ref", ref), slog.Int("item", i+1), slog.Int("total", len(drvs)))
+	}
+
+	log.Info("Copying flake archive to output")
+	// nix flake archive --to file:///nix-export/nix-store/
+	if err := nixcmd.FlakeArchive(os.Stdout, os.Stderr, args.Code, targetStore); err != nil {
+		log.Error("failed to archive flake", slog.Any("error", err))
+		return fmt.Errorf("failed to archive flake: %w", err)
+	}
+	// End of the manually exported code.
 
 	log.Info("Copying source code")
 	srcOutputDir := filepath.Join(nixExportPath, "source")
 	if err := os.MkdirAll(srcOutputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create source output directory: %w", err)
 	}
-	ignore := []string{".direnv", "result"}
+	ignore := []string{".direnv", "nix-export", "nix-export.tar.gz", "result", "coverage.out", ".DS_Store"}
 	symlinks := make(map[string]struct{})
 	opt := cp.Options{
 		Skip: func(srcinfo os.FileInfo, src, dest string) (bool, error) {
@@ -163,33 +204,19 @@ loop:
 	}
 
 	log.Info("Archiving output")
-	if err = archive(ctx, nixExportPath, args.ExportFileName); err != nil {
+	size, err := archive(ctx, nixExportPath, args.ExportFileName)
+	if err != nil {
 		return fmt.Errorf("failed to archive: %w", err)
 	}
 
-	log.Info("Shutting down binary cache")
-	if err := server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("failed to shutdown binary cache: %w", err)
-	}
 	wg.Wait()
 
-	log.Info("Complete")
+	log.Info("Complete", slog.String("uncompressedSize", humanize.Bytes(uint64(size))))
 	return nil
 }
 
-func getArchitecture() string {
-	switch runtime.GOARCH {
-	case "amd64":
-		return "x86_64"
-	case "arm64":
-		return "aarch64"
-	default:
-		return runtime.GOARCH
-	}
-}
-
 func writeManifest(ctx context.Context, nixExportPath string) (err error) {
-	exportManifestFileName := filepath.Join(nixExportPath, fmt.Sprintf("nix-export-%s-%s.txt", getArchitecture(), runtime.GOOS))
+	exportManifestFileName := filepath.Join(nixExportPath, "nix-export.txt")
 	w, err := os.Create(exportManifestFileName)
 	if err != nil {
 		return fmt.Errorf("failed to create manifest file: %w", err)
@@ -224,10 +251,10 @@ func writeManifest(ctx context.Context, nixExportPath string) (err error) {
 	})
 }
 
-func archive(ctx context.Context, srcPath, tgtPath string) (err error) {
+func archive(ctx context.Context, srcPath, tgtPath string) (size int64, err error) {
 	f, err := os.Create(tgtPath)
 	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
+		return size, fmt.Errorf("failed to create output file: %w", err)
 	}
 	defer f.Close()
 
@@ -265,22 +292,24 @@ func archive(ctx context.Context, srcPath, tgtPath string) (err error) {
 			if err != nil {
 				return fmt.Errorf("failed to open file %q: %w", path, err)
 			}
-			if _, err := io.Copy(tw, data); err != nil {
+			length, err := io.Copy(tw, data)
+			if err != nil {
 				return fmt.Errorf("failed to copy file %q: %w", path, err)
 			}
+			size += length
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to walk source path: %w", err)
+		return size, fmt.Errorf("failed to walk source path: %w", err)
 	}
 
 	if err := tw.Close(); err != nil {
-		return fmt.Errorf("failed to close tar writer: %w", err)
+		return size, fmt.Errorf("failed to close tar writer: %w", err)
 	}
 	if err := zw.Close(); err != nil {
-		return fmt.Errorf("failed to close gzip writer: %w", err)
+		return size, fmt.Errorf("failed to close gzip writer: %w", err)
 	}
 
-	return nil
+	return size, nil
 }
