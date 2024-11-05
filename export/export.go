@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	"github.com/a-h/flakegap/nixcmd"
+	"github.com/dustin/go-humanize"
 	"github.com/nix-community/go-nix/pkg/narinfo"
 	cp "github.com/otiai10/copy"
 )
@@ -89,23 +90,21 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	defer f.Close()
 	// export NIXPKGS_COMMIT=`jq -r '.nodes.[.nodes.[.root].inputs.nixpkgs].locked | "\(.type):\(.owner)/\(.repo)/\(.rev)"' flake.lock`
 	// nix copy --to file://$PWD/export "$NIXPKGS_COMMIT#legacyPackages.x86_64-linux.bashInteractive"
-	nixpkgsRefs, err := nixcmd.GetNixpkgsReferences(f)
+	nixpkgsRef, err := nixcmd.GetNixpkgsReference(f)
 	if err != nil {
 		return fmt.Errorf("failed to get nixpkgs reference: %w", err)
 	}
 	suffixes := []string{
 		fmt.Sprintf("#legacyPackages.%s-%s.bashInteractive", args.Architecture, args.Platform), // Required for nix develop.
 	}
-	for _, nixpkgsRef := range nixpkgsRefs {
-		for _, suffix := range suffixes {
-			nixpkgsRefWithSuffix := nixpkgsRef + suffix
-			log.Info("Copying nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix))
-			realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, nixpkgsRefWithSuffix)
-			if err != nil {
-				return fmt.Errorf("failed to copy nixpkgs to %q: %w", targetStore, err)
-			}
-			log.Info("Copied nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix), slog.Int("realisedPaths", realisedPathCount))
+	for _, suffix := range suffixes {
+		nixpkgsRefWithSuffix := nixpkgsRef + suffix
+		log.Info("Copying nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix))
+		realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, nixpkgsRefWithSuffix)
+		if err != nil {
+			return fmt.Errorf("failed to copy nixpkgs to %q: %w", targetStore, err)
 		}
+		log.Info("Copied nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix), slog.Int("realisedPaths", realisedPathCount))
 	}
 
 	for i, ref := range drvs {
@@ -201,13 +200,14 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 
 	log.Info("Archiving output")
-	if err = archive(ctx, nixExportPath, args.ExportFileName); err != nil {
+	size, err := archive(ctx, nixExportPath, args.ExportFileName)
+	if err != nil {
 		return fmt.Errorf("failed to archive: %w", err)
 	}
 
 	wg.Wait()
 
-	log.Info("Complete")
+	log.Info("Complete", slog.String("uncompressedSize", humanize.Bytes(uint64(size))))
 	return nil
 }
 
@@ -247,10 +247,10 @@ func writeManifest(ctx context.Context, nixExportPath string) (err error) {
 	})
 }
 
-func archive(ctx context.Context, srcPath, tgtPath string) (err error) {
+func archive(ctx context.Context, srcPath, tgtPath string) (size int64, err error) {
 	f, err := os.Create(tgtPath)
 	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
+		return size, fmt.Errorf("failed to create output file: %w", err)
 	}
 	defer f.Close()
 
@@ -288,22 +288,24 @@ func archive(ctx context.Context, srcPath, tgtPath string) (err error) {
 			if err != nil {
 				return fmt.Errorf("failed to open file %q: %w", path, err)
 			}
-			if _, err := io.Copy(tw, data); err != nil {
+			length, err := io.Copy(tw, data)
+			if err != nil {
 				return fmt.Errorf("failed to copy file %q: %w", path, err)
 			}
+			size += length
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to walk source path: %w", err)
+		return size, fmt.Errorf("failed to walk source path: %w", err)
 	}
 
 	if err := tw.Close(); err != nil {
-		return fmt.Errorf("failed to close tar writer: %w", err)
+		return size, fmt.Errorf("failed to close tar writer: %w", err)
 	}
 	if err := zw.Close(); err != nil {
-		return fmt.Errorf("failed to close gzip writer: %w", err)
+		return size, fmt.Errorf("failed to close gzip writer: %w", err)
 	}
 
-	return nil
+	return size, nil
 }

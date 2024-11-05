@@ -7,10 +7,105 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+var m = map[string]any{
+	"a0": "a0_value",
+	"b0": "b0_value",
+	"c0": map[string]any{
+		"c1": "c1_value",
+		"c2": false, // Unsupported type.
+		"d2": 1,     // Unsupported type.
+		"e2": map[string]any{
+			"a3": "a3_value",
+			"b3": "b3_value",
+		},
+		"f2": []any{"f2_value"},       // Unsupported type.
+		"g2": map[string]int{"g2": 1}, // Unsupported type.
+	},
+}
+
+func TestJSONMapStringValue(t *testing.T) {
+	tests := []struct {
+		name       string
+		keys       []string
+		expectedOK bool
+		expected   string
+	}{
+		{
+			name:       "nothing to find",
+			expectedOK: false,
+		},
+		{
+			name:       "key not found",
+			keys:       []string{"a-1"},
+			expectedOK: false,
+		},
+		{
+			name:       "key found",
+			keys:       []string{"a0"},
+			expectedOK: true,
+			expected:   "a0_value",
+		},
+		{
+			name:       "nested key found",
+			keys:       []string{"c0", "c1"},
+			expectedOK: true,
+			expected:   "c1_value",
+		},
+		{
+			name:       "nested key not found",
+			keys:       []string{"c0", "c-1"},
+			expectedOK: false,
+		},
+		{
+			name:       "nested key found, but unsupported type (bool)",
+			keys:       []string{"c0", "c2"},
+			expectedOK: false,
+		},
+		{
+			name:       "nested key found, but unsupported type (int)",
+			keys:       []string{"c0", "d2"},
+			expectedOK: false,
+		},
+		{
+			name:       "nested key found, but unsupported type (slice)",
+			keys:       []string{"c0", "f2"},
+			expectedOK: false,
+		},
+		{
+			name:       "nested key found, but unsupported type (map)",
+			keys:       []string{"c0", "g2"},
+			expectedOK: false,
+		},
+		{
+			name:       "nested key not found, missing intermediate key",
+			keys:       []string{"c0", "e-1", "a3"},
+			expectedOK: false,
+		},
+		{
+			name:       "nested nested key found",
+			keys:       []string{"c0", "e2", "a3"},
+			expectedOK: true,
+			expected:   "a3_value",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			actual, ok := JSONMapValue[string](m, test.keys...)
+			if ok != test.expectedOK {
+				t.Errorf("unexpected ok: want %v, got %v", test.expectedOK, ok)
+			}
+			if actual != test.expected {
+				t.Errorf("unexpected value: want %v, got %v", test.expected, actual)
+			}
+		})
+	}
+}
+
 func TestGetNixpkgsReferences(t *testing.T) {
 	tests := []struct {
 		nixLockFile string
-		expected    []string
+		expected    string
 	}{
 		{
 			nixLockFile: `{
@@ -312,16 +407,11 @@ func TestGetNixpkgsReferences(t *testing.T) {
   "root": "root",
   "version": 7
 }`,
-			expected: []string{
-				"github:NixOS/nixpkgs/080166c15633801df010977d9d7474b4a6c549d7",
-				"github:NixOS/nixpkgs/a62e6edd6d5e1fa0329b8653c801147986f8d446",
-				"github:NixOS/nixpkgs/215d4d0fd80ca5163643b03a33fde804a29cc1e2",
-				"github:NixOS/nixpkgs/64b80bfb316b57cdb8919a9110ef63393d74382a",
-			},
+			expected: "github:NixOS/nixpkgs/64b80bfb316b57cdb8919a9110ef63393d74382a",
 		},
 	}
 	for _, test := range tests {
-		actual, err := GetNixpkgsReferences(bytes.NewReader([]byte(test.nixLockFile)))
+		actual, err := GetNixpkgsReference(bytes.NewReader([]byte(test.nixLockFile)))
 		if err != nil {
 			t.Fatalf("failed to get nixpkgs reference: %v", err)
 		}
