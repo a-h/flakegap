@@ -21,12 +21,17 @@ func main() {
 		printUsage()
 		os.Exit(1)
 	}
-
 	ctx := context.Background()
 	var err error
 
 	switch os.Args[1] {
 	case "version":
+		fallthrough
+	case "-v":
+		fallthrough
+	case "--version":
+		fallthrough
+	case "-version":
 		fmt.Println(version)
 	case "export":
 		err = exportCmd(ctx)
@@ -124,9 +129,6 @@ Usage:
 
   flakegap validate
     - Validates that the export worked by running a build in an airgapped container.
-
-  flakegap serve
-    - Serve a local binary cache for the airgapped system to use (started automatically by export).
 
   flakegap version
     - Print the version of flakegap.`)

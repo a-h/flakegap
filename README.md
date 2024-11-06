@@ -56,9 +56,7 @@ flakegap validate
 
 If you want to test it manually, you can run the Docker container interactively with no network access.
 
-To run the first part of the export, create a `nix-export.tar.gz` by running the `runtim export` command inside a Docker container that has network access.
-
-You can specify `runtime export -substituter=http://localhost:41805?trusted=1` and run `flakegap serve` to run a local binary cache to speed things up by using your local Nix cache inside the Docker container.
+To run the first part of the export, create a `nix-export.tar.gz` by running the `runtime export` command inside a Docker container that has network access.
 
 ```bash
 docker run -it --rm --network host -v $PWD:/code:Z -v $PWD/nix-export:/nix-export --entrypoint=/bin/bash ghcr.io/a-h/flakegap:latest
@@ -259,12 +257,6 @@ interactive: true
 
 ```bash
 docker run -it --rm --entrypoint=/bin/bash -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:local
-```
-
-### serve-run
-
-```bash
-nix run .#default -- serve
 ```
 
 ### test
