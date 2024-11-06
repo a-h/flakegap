@@ -84,6 +84,7 @@ func exportCmd(ctx context.Context) error {
 	cmdFlags.StringVar(&args.Platform, "platform", "linux", "Platform to build for, e.g. linux, darwin")
 	cmdFlags.BoolVar(&verboseFlag, "v", false, "")
 	cmdFlags.StringVar(&logLevelFlag, "log-level", "info", "")
+	cmdFlags.StringVar(&args.TemporaryPath, "temporary-path", "", "Directory to write temporary files to")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
 	if args.ExportFileName == "" {
