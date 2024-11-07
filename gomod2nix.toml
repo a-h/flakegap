@@ -80,8 +80,11 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-5OxW1ShHypLpzVu+BJivNlFX2JFPh9WKfJcMIgPZf4U="
   [mod."github.com/otiai10/copy"]
-    version = "v1.14.0"
-    hash = "sha256-xsaL1ddkPS544y0Jv7u/INUALBYmYq29ddWvysLXk4A="
+    version = "v1.14.1-0.20240925044834-49b0b590f1e1"
+    hash = "sha256-S4UUUh8ojLLYQmrTpGUOljt+T3hJEoRsFQsN3ObXUOs="
+  [mod."github.com/otiai10/mint"]
+    version = "v1.6.3"
+    hash = "sha256-/FT3dYP2+UiW/qe1pxQ7HiS8et4+KHGPIMhc+8mHvzw="
   [mod."github.com/pkg/errors"]
     version = "v0.9.1"
     hash = "sha256-mNfQtcrQmu3sNg/7IwiieKWOgFQOVVe2yXgKBpe/wZw="
@@ -110,8 +113,8 @@ schema = 3
     version = "v0.25.0"
     hash = "sha256-traLAylqoBwGIh0Z1fuEhNjbGgQBItgVjtZYdYr0zzQ="
   [mod."golang.org/x/sync"]
-    version = "v0.7.0"
-    hash = "sha256-2ETllEu2GDWoOd/yMkOkLC2hWBpKzbVZ8LhjLu0d2A8="
+    version = "v0.8.0"
+    hash = "sha256-usvF0z7gq1vsX58p4orX+8WHlv52pdXgaueXlwj2Wss="
   [mod."golang.org/x/sys"]
     version = "v0.25.0"
     hash = "sha256-PXZ9EQZ7SFpcL7d3E1+KGTxziYlHEIZPfoXEbnaVD3I="

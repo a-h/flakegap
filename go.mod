@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/nix-community/go-nix v0.0.0-20231219074122-93cb24a86856
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/otiai10/copy v1.14.0
+	github.com/otiai10/copy v1.14.1-0.20240925044834-49b0b590f1e1
 )
 
 require (
@@ -33,6 +33,7 @@ require (
 	github.com/multiformats/go-multihash v0.2.3 // indirect
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
+	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
@@ -42,7 +43,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.28.0 // indirect
 	go.opentelemetry.io/otel/trace v1.28.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
