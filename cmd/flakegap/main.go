@@ -131,6 +131,9 @@ Usage:
   flakegap validate
     - Validates that the export worked by running a build in an airgapped container.
 
+	flakegap import
+	  - Imports the output of the export command into the local Nix store.
+
   flakegap version
     - Print the version of flakegap.`)
 }
