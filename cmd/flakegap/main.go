@@ -126,7 +126,7 @@ Export Nix packages required to build a flake on an airgapped system.
 Usage:
 
   flakegap export
-    - Starts a container that runs required export commands.
+    - Exports all of the source code, builds, devShells and dependencies.
 
   flakegap validate
     - Validates that the export worked by running a build in an airgapped container.
