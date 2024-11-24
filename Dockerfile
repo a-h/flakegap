@@ -10,6 +10,7 @@ RUN go mod download
 COPY . ./
 
 RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty)" -o /app/validatecmd ./cmd/validate
+RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.version=$(git describe --tags --always --dirty)" -o /app/flakegapcmd ./cmd/flakegap
 
 FROM ubuntu:latest AS deps
 
@@ -57,5 +58,6 @@ RUN git config --global --add safe.directory /code
 
 # Copy the validate app.
 COPY --from=build-stage /app/validatecmd /usr/local/bin/validate
+COPY --from=build-stage /app/flakegapcmd /usr/local/bin/flakegap
 
 ENTRYPOINT [ "/usr/local/bin/validate" ]

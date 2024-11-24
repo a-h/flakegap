@@ -39,19 +39,16 @@
           runHook preBuild
 
           npm run build
+
           # Copy the build to the output directory.
           mkdir -p $out
-          cp -r ./build $out
-          # Copy the package.json to the output directory.
-          cp -r ./package.json $out
-          # Copy node_modules to the output directory.
-          cp -r ./node_modules $out
+          cp -r ./build $out/lib
 
           echo "Creating entrypoint script..."
           mkdir -p $out/bin
           cat << EOF > $out/bin/${name}
           #!${pkgs.bash}/bin/bash
-          ${pkgs.node}/bin/node $out
+          ${pkgs.nodejs}/bin/node $out/lib/index.js
           EOF
           chmod +x $out/bin/${name}
 
