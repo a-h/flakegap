@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/a-h/flakegap/export"
+	"github.com/a-h/flakegap/importcmd"
 	"github.com/a-h/flakegap/sloghandler"
 	"github.com/a-h/flakegap/validate"
 )
@@ -35,6 +36,8 @@ func main() {
 		fmt.Println(version)
 	case "export":
 		err = exportCmd(ctx)
+	case "import":
+		err = importCmd(ctx)
 	case "validate":
 		err = validateCmd(ctx)
 	default:
@@ -98,6 +101,25 @@ func exportCmd(ctx context.Context) error {
 	return export.Run(ctx, log, args)
 }
 
+func importCmd(ctx context.Context) error {
+	args := importcmd.Args{}
+	var verboseFlag bool
+	var logLevelFlag string
+	cmdFlags := flag.NewFlagSet("import", flag.ContinueOnError)
+	cmdFlags.StringVar(&args.ImportFileName, "import-filename", "nix-export.tar.gz", "Path to the tar.gz file created by the export command.")
+	cmdFlags.BoolVar(&verboseFlag, "v", false, "")
+	cmdFlags.StringVar(&logLevelFlag, "log-level", "info", "")
+	cmdFlags.StringVar(&args.TemporaryPath, "temporary-path", "", "Directory to write temporary files to")
+	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
+	cmdFlags.Parse(os.Args[2:])
+	if args.Help {
+		cmdFlags.PrintDefaults()
+		os.Exit(1)
+	}
+	log := newLogger(logLevelFlag, verboseFlag, os.Stderr)
+	return importcmd.Run(ctx, log, args)
+}
+
 func validateCmd(ctx context.Context) error {
 	args := validate.Args{}
 	var verboseFlag bool
@@ -131,8 +153,8 @@ Usage:
   flakegap validate
     - Validates that the export worked by running a build in an airgapped container.
 
-	flakegap import
-	  - Imports the output of the export command into the local Nix store.
+  flakegap import
+    - Imports the output of the export command into the local Nix store.
 
   flakegap version
     - Print the version of flakegap.`)
