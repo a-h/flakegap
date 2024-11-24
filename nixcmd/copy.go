@@ -50,11 +50,13 @@ func CopyToAll(stdout, stderr io.Writer, codeDir, targetStore, ref string) (real
 	if err := CopyTo(stdout, stderr, codeDir, targetStore, false, ref); err != nil {
 		return realisedPathCount, fmt.Errorf("failed to copy path: %w", err)
 	}
-	// We need to copy the realised derivations of the thing we're trying to transfer so that we can build it.
-	// nix derivation show .# | jq -r '.[].inputDrvs | keys[]'
-	drvs, err := DerivationShow(stdout, stderr, codeDir, ref)
+	// Recursively fetch derivations.
+	drvs, err := PathInfo(stdout, stderr, codeDir, true, true, ref)
 	if err != nil {
-		return realisedPathCount, fmt.Errorf("failed to get input derivations: %w", err)
+		return realisedPathCount, fmt.Errorf("failed to get path info: %w", err)
+	}
+	if len(drvs) == 0 {
+		return realisedPathCount, nil
 	}
 	// nix-store --realise $paths_from_previous_command
 	realisedPaths, err := NixStoreRealise(stdout, stderr, targetStore, drvs)

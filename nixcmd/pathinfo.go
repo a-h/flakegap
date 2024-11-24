@@ -35,17 +35,19 @@ func PathInfo(stdout, stderr io.Writer, codeDir string, recursive, derivation bo
 	}
 
 	// Parse the output.
-	var m map[string]any
-	err = json.Unmarshal(stdoutBuffer.Bytes(), &m)
+	var op []pathInfoOutput
+	err = json.Unmarshal(stdoutBuffer.Bytes(), &op)
 	if err != nil {
 		return paths, fmt.Errorf("failed to parse nix path-info output: %w", err)
 	}
-	paths = make([]string, len(m))
-	var i int
-	for k := range m {
-		paths[i] = k
-		i++
+	paths = make([]string, len(op))
+	for i, pio := range op {
+		paths[i] = pio.Path
 	}
 
 	return paths, nil
+}
+
+type pathInfoOutput struct {
+	Path string `json:"path"`
 }
