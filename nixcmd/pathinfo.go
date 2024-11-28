@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 )
 
 // nix copy --to file://$PWD/nix-export/nix-store `nix-store --realise $(nix path-info --recursive --derivation .#)`
@@ -31,21 +32,50 @@ func PathInfo(stdout, stderr io.Writer, codeDir string, recursive, derivation bo
 	cmd.Stderr = stderr
 	cmd.Dir = codeDir
 	if err = cmd.Run(); err != nil {
-		return paths, fmt.Errorf("failed to run nix path-info: %w", err)
+		return paths, fmt.Errorf("failed to run nix %s: %w", strings.Join(args, " "), err)
 	}
 
-	// Parse the output.
-	var op []pathInfoOutput
-	err = json.Unmarshal(stdoutBuffer.Bytes(), &op)
+	paths, err = getPathInfo(stdoutBuffer.Bytes())
 	if err != nil {
-		return paths, fmt.Errorf("failed to parse nix path-info output: %w", err)
+		return paths, fmt.Errorf("failed to get path info from nix %s: %w", strings.Join(args, " "), err)
 	}
-	paths = make([]string, len(op))
-	for i, pio := range op {
-		paths[i] = pio.Path
+	return paths, nil
+}
+
+func getPathInfo(stdout []byte) (paths []string, err error) {
+	if len(stdout) == 0 {
+		return paths, fmt.Errorf("empty nix path-info output")
+	}
+	switch string(stdout[:1]) {
+	case "[":
+		var op []pathInfoOutput
+		err = json.Unmarshal(stdout, &op)
+		if err != nil {
+			return paths, err
+		}
+
+		paths = make([]string, len(op))
+		for i, pio := range op {
+			paths[i] = pio.Path
+		}
+		return paths, nil
+	case "{":
+		var pio map[string]any
+		err = json.Unmarshal(stdout, &pio)
+		if err != nil {
+			return paths, err
+		}
+
+		paths = make([]string, len(pio))
+		var i int
+		for k := range pio {
+			paths[i] = k
+			i++
+		}
+		return paths, nil
 	}
 
-	return paths, nil
+	return paths, fmt.Errorf("unexpected output: %s", string(stdout))
 }
 
 type pathInfoOutput struct {

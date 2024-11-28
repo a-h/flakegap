@@ -112,7 +112,7 @@ var drvJSON = `{
 `
 
 func TestGetInputDrvs(t *testing.T) {
-	drvs, err := getInputDrvs([]byte(drvJSON))
+	drvs, srcs, err := getInputDrvs([]byte(drvJSON))
 	if err != nil {
 		t.Fatalf("failed to unmarshal derivation: %v", err)
 	}
@@ -124,6 +124,15 @@ func TestGetInputDrvs(t *testing.T) {
 		"/nix/store/vnizn5lspyzscn4l7m34is5b7fpdfb2b-go-1.22.6.drv",
 	}
 	if diff := cmp.Diff(expected, drvs); diff != "" {
+		t.Error(diff)
+	}
+
+	expectedSrcs := []string{
+		"/nix/store/638nnx35i53zrkb36nyp11ag7r1qfk8d-hy1lxxc23z6j9kp6h57672plbixykxwn-source",
+		"/nix/store/hy1lxxc23z6j9kp6h57672plbixykxwn-source",
+		"/nix/store/v6x3cs394jgqfbi0a42pam708flxaphh-default-builder.sh",
+	}
+	if diff := cmp.Diff(expectedSrcs, srcs); diff != "" {
 		t.Error(diff)
 	}
 }
