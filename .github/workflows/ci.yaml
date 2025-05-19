@@ -16,9 +16,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - uses: DeterminateSystems/nix-installer-action@v12
+      - uses: nixbuild/nix-quick-install-action@v30
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: DeterminateSystems/magic-nix-cache-action@v7
+      - name: Restore and save Nix store
+        uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+          gc-max-store-size-linux: 1G
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-primary-key: never
 
       - uses: DeterminateSystems/flake-checker-action@v8
 

@@ -199,12 +199,6 @@ You can then use the Flake input, as shown here:
 
 ## Tasks
 
-### gomod2nix-update
-
-```bash
-gomod2nix
-```
-
 ### build
 
 ```bash
