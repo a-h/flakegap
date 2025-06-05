@@ -39,7 +39,7 @@ You can work around it by importing the paths one by one.
 ```bash
 while read -r p; do
   nix copy $p --from file://$PWD/nix-export/nix-store --no-check-sigs;
-done < ./nix-export/nix-export-x86_64-linux.txt
+done < ./nix-export/nix-export-linux.txt
 ```
 
 If you see the error message: "Cannot add path because it lacks a signature by a trusted key", despite using `--no-check-sigs`, it's likely because you're not a trusted user of Nix. To add yourself, configure `trusted-users` in the `/etc/nix/nix.conf` file, e.g.:
