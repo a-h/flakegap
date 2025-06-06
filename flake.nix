@@ -38,7 +38,7 @@
         src = gitignore.lib.gitignoreSource ./.;
         go = pkgs.go;
         subPackages = [ "cmd/${name}" ];
-        vendorHash = "sha256-kidGMR1vQnlqQl2tCYc/t/ZiViCooide/yP0vJO6sxM=";
+        vendorHash = "sha256-ZBzViO9DbCB05UcLOOqGpQKtrRoMcGxyh65wlNHsL8c=";
         goSum = ./go.sum;
         CGO_ENABLED = 0;
         flags = [
