@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	"slices"
+
 	"github.com/a-h/flakegap/archive"
 	"github.com/a-h/flakegap/nixcmd"
 	"github.com/dustin/go-humanize"
@@ -186,12 +188,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	symlinks := make(map[string]struct{})
 	opt := cp.Options{
 		Skip: func(srcinfo os.FileInfo, src, dest string) (bool, error) {
-			for _, ignored := range ignore {
-				if srcinfo.Name() == ignored {
-					return true, nil
-				}
-			}
-			return false, nil
+			return slices.Contains(ignore, srcinfo.Name()), nil
 		},
 		OnSymlink: func(src string) cp.SymlinkAction {
 			symlinks[src] = struct{}{}
