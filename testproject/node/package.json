@@ -13,7 +13,7 @@
     "slugify": "^1.6.6"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.25.5",
     "typescript": "^5.7.2"
   }
 }
