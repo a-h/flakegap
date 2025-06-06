@@ -40,7 +40,9 @@
         subPackages = [ "cmd/${name}" ];
         vendorHash = "sha256-ZBzViO9DbCB05UcLOOqGpQKtrRoMcGxyh65wlNHsL8c=";
         goSum = ./go.sum;
-        CGO_ENABLED = 0;
+        env = {
+          CGO_ENABLED = "0";
+        };
         flags = [
           "-trimpath"
         ];
