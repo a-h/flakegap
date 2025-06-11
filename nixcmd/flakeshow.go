@@ -51,7 +51,7 @@ func findDerivation(architectureAndPlatform string, parents []string, m map[stri
 			matches = append(matches, ".#"+strings.Join(parents, "."))
 			continue
 		}
-		parents := append([]string{}, append(parents, k)...)
+		parents := slices.Clone(append(parents, k))
 		if m, ok := v.(map[string]any); ok {
 			if children := findDerivation(architectureAndPlatform, parents, m); len(children) > 0 {
 				matches = append(matches, children...)

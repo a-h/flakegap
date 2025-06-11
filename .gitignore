@@ -8,3 +8,5 @@ result
 coverage.out
 # Mac stuff.
 .DS_Store
+# Ignore npm and PyPip package exports.
+packages

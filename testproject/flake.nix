@@ -83,13 +83,24 @@
       };
 
       # Development tools used.
-      devTools = { system, pkgs }: [
-        pkgs.gh
-        pkgs.git
-        # Container tools.
-        pkgs.crane
-        pkgs.docker
-      ];
+      devTools = { system, pkgs }:
+        let
+          pythonPackages = with pkgs.python312Packages; [
+            venvShellHook # Just use pip etc.
+            python-lsp-server
+            pip
+          ];
+        in
+        [
+          pkgs.gh
+          pkgs.git
+          # Container tools.
+          pkgs.crane
+          pkgs.docker
+          # Python.
+          pkgs.python312
+          pythonPackages
+        ];
 
       name = "testproject";
     in
@@ -106,6 +117,7 @@
       # `nix develop` provides a shell containing required tools.
       devShells = forAllSystems ({ system, pkgs }: {
         default = pkgs.mkShell {
+          venvDir = "./.venv"; # Required for standard Python usage.
           buildInputs = (devTools { system = system; pkgs = pkgs; });
         };
       });

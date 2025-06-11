@@ -1,0 +1,14 @@
+blinker==1.9.0
+click==8.2.1
+docstring-to-markdown==0.15
+Flask==3.1.1
+itsdangerous==2.2.0
+jedi==0.19.2
+Jinja2==3.1.6
+MarkupSafe==3.0.2
+parso==0.8.4
+pluggy==1.5.0
+python-lsp-jsonrpc==1.1.2
+python-lsp-server==1.12.2
+ujson==5.10.0
+Werkzeug==3.1.3

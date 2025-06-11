@@ -65,6 +65,9 @@
         pkgs.nix
         pkgs.wget
         pkgs.xc
+        # Python is only needed for testing flakegap export --export-pypi=true
+        pkgs.python312
+        pkgs.python312Packages.pip
       ];
     in
     {

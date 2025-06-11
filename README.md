@@ -97,6 +97,32 @@ And run the build:
 nix build
 ```
 
+## Exporting development packages
+
+Flakegap will automatically detect `requirements.txt` and `package-lock.json` files and attempt to download them to a `packages/pypi` or `packages/npm` directory alongside the code.
+
+To skip package exports, use:
+
+```bash
+flakegap export --export-pypi=false --export-npm=false
+```
+
+## Python
+
+To pull the Python packages, `flakegap` uses `pip install -r requirements.txt --target ./packages/pypi --dry-run --report report.json --code-path .`.
+
+This produces a JSON file that contains download links for the packages.
+
+PyPi packages can be specific to a Python version, operating system, and/or architecture.
+
+If you download the packages on one machine, they may not work on another machine with a different Python version or operating system.
+
+To avoid this, `flakegap` uses the version of Python embedded in the `devShell` of the Nix flake that is being exported to run the export.
+
+## Node.js
+
+To pull NPM packages, `flakegap` looks at the `package-lock.json` file. This contains the download links for the packages, which are then downloaded to a `packages/npm` directory alongside the code.
+
 ## Installation
 
 ### Nix shell (source)
