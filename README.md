@@ -342,3 +342,9 @@ interactive: true
 echo "Validating Flake requirements..."
 go run ../cmd/flakegap validate -image ghcr.io/a-h/flakegap:local
 ```
+
+### push-tag
+
+```bash
+version push
+```

@@ -55,7 +55,29 @@
       "inputs": {
         "gitignore": "gitignore",
         "nixpkgs": "nixpkgs",
+        "version": "version",
         "xc": "xc"
+      }
+    },
+    "version": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1749990604,
+        "narHash": "sha256-nw3SxPRfYMc9SeVCbN0SXUws252Gq6IEbM0mvERyhNg=",
+        "owner": "a-h",
+        "repo": "version",
+        "rev": "656f7d05822a76699bfffaeebf8fcb0f9130e44b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "a-h",
+        "ref": "0.0.9",
+        "repo": "version",
+        "type": "github"
       }
     },
     "xc": {
