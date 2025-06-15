@@ -183,7 +183,7 @@ func exportPackages(ctx context.Context, log *slog.Logger, args Args) (err error
 				log.Info("Skipping pypi requirements.txt export, --export-pypi is not enabled")
 				continue
 			}
-			if err := pypi.Export(ctx, log, os.Stdout, os.Stderr, args.Code, packageFile); err != nil {
+			if err := pypi.Export(ctx, log, os.Stdout, os.Stderr, args.Platform, args.Architecture, args.Code, packageFile); err != nil {
 				return fmt.Errorf("failed to export requirements.txt %q: %w", packageFile, err)
 			}
 			continue
