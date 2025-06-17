@@ -57,7 +57,7 @@ func Export(ctx context.Context, log *slog.Logger, stdout, stderr io.Writer, pla
 	if err != nil {
 		return err
 	}
-	packagesForPlatform, err := getPackagesForPlatform(ctx, log, stdout, stderr, codePath, requirementsTxtPath, pythonPlatforms)
+	packagesForPlatform, err := getPackagesForPlatform(ctx, stdout, stderr, codePath, requirementsTxtPath, pythonPlatforms)
 	if err != nil {
 		return fmt.Errorf("failed to get packages: %w", err)
 	}
@@ -79,19 +79,18 @@ func Export(ctx context.Context, log *slog.Logger, stdout, stderr io.Writer, pla
 	return download.Files(ctx, log, 4, sha256.New, downloads)
 }
 
-func getPackagesForPlatform(ctx context.Context, log *slog.Logger, stdout, stderr io.Writer, codePath, requirementsTxtPath string, pythonPlatforms []string) (packages []Package, err error) {
+func getPackagesForPlatform(ctx context.Context, stdout, stderr io.Writer, codePath, requirementsTxtPath string, pythonPlatforms []string) (packages []Package, err error) {
 	outputFileName := filepath.Join(os.TempDir(), fmt.Sprintf("flakegap-pypi-%d.json", time.Now().Unix()))
 	defer os.Remove(outputFileName)
 
 	// Construct command.
 	// nix develop --command -- pip install -r requirements.txt --ignore-installed --dry-run --platform manylinux2014_x86_64 --only-binary=:all: --report output.json
-	cmd := append([]string{"pip", "install", "-r", requirementsTxtPath, "--ignore-installed"})
+	cmd := []string{"pip", "install", "-r", requirementsTxtPath, "--ignore-installed"}
 	for _, platform := range pythonPlatforms {
 		cmd = append(cmd, "--platform", platform)
 	}
 	cmd = append(cmd, "--only-binary", ":all:", "--dry-run", "--report", outputFileName)
 
-	log.Info("Running pip install command", slog.String("command", strings.Join(cmd, " ")))
 	if err := nixcmd.Develop(ctx, stdout, stderr, codePath, cmd...); err != nil {
 		return nil, fmt.Errorf("failed to run pip install: %w", err)
 	}

@@ -140,7 +140,8 @@ func exportPackages(ctx context.Context, log *slog.Logger, args Args) (err error
 		return nil
 	}
 
-	// Look for package-lock.json, requirements.txt.
+	// Look for package-lock.json, requirements.txt, but don't look inside package directories themselves.
+	ignore := []string{".git", "node_modules", ".venv", "nix-export", "result", "coverage.out", ".DS_Store"}
 	packageFiles := make(chan string, 16)
 	go func() {
 		defer close(packageFiles)
@@ -152,8 +153,7 @@ func exportPackages(ctx context.Context, log *slog.Logger, args Args) (err error
 				return cancel
 			}
 			if d.IsDir() {
-				if d.Name() == "node_modules" || d.Name() == ".git" {
-					// Skip node_modules and .git directories.
+				if slices.Contains(ignore, d.Name()) {
 					return filepath.SkipDir
 				}
 				return nil
