@@ -45,7 +45,7 @@ type Metadata struct {
 
 func Export(ctx context.Context, log *slog.Logger, stdout, stderr io.Writer, platform, architecture, codePath, requirementsTxtPath string) error {
 	// Get PyPi packages.
-	log.Info("Exporting Python requirements", slog.String("requirementsTxtPath", requirementsTxtPath))
+	log.Info("Exporting Python requirements", slog.String("requirements", requirementsTxtPath))
 
 	// Create output directory.
 	outputDirectory := filepath.Join(codePath, "packages/pypi")
@@ -53,17 +53,17 @@ func Export(ctx context.Context, log *slog.Logger, stdout, stderr io.Writer, pla
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	pythonPlatform, err := getPythonPlatform(platform, architecture)
+	pythonPlatforms, err := getPythonPlatforms(platform, architecture)
 	if err != nil {
 		return err
 	}
-	packagesForPlatform, err := getPackagesForPlatform(ctx, stdout, stderr, codePath, requirementsTxtPath, pythonPlatform)
+	packagesForPlatform, err := getPackagesForPlatform(ctx, log, stdout, stderr, codePath, requirementsTxtPath, pythonPlatforms)
 	if err != nil {
-		return fmt.Errorf("failed to get packages for platform %s: %w", pythonPlatform, err)
+		return fmt.Errorf("failed to get packages: %w", err)
 	}
 	files, err := getDownloadInfo(packagesForPlatform, outputDirectory)
 	if err != nil {
-		return fmt.Errorf("failed to get download info for platform %s: %w", pythonPlatform, err)
+		return fmt.Errorf("failed to get download info: %w", err)
 	}
 
 	log.Info("Found pip packages", slog.Int("packages", len(files)))
@@ -79,14 +79,23 @@ func Export(ctx context.Context, log *slog.Logger, stdout, stderr io.Writer, pla
 	return download.Files(ctx, log, 4, sha256.New, downloads)
 }
 
-func getPackagesForPlatform(ctx context.Context, stdout, stderr io.Writer, codePath, requirementsTxtPath, pythonPlatform string) (packages []Package, err error) {
+func getPackagesForPlatform(ctx context.Context, log *slog.Logger, stdout, stderr io.Writer, codePath, requirementsTxtPath string, pythonPlatforms []string) (packages []Package, err error) {
 	outputFileName := filepath.Join(os.TempDir(), fmt.Sprintf("flakegap-pypi-%d.json", time.Now().Unix()))
 	defer os.Remove(outputFileName)
 
+	// Construct command.
 	// nix develop --command -- pip install -r requirements.txt --ignore-installed --dry-run --platform manylinux2014_x86_64 --only-binary=:all: --report output.json
-	if err := nixcmd.Develop(ctx, stdout, stderr, codePath, "pip", "install", "-r", requirementsTxtPath, "--ignore-installed", "--platform", pythonPlatform, "--only-binary", ":all:", "--dry-run", "--report", outputFileName); err != nil {
+	cmd := append([]string{"pip", "install", "-r", requirementsTxtPath, "--ignore-installed"})
+	for _, platform := range pythonPlatforms {
+		cmd = append(cmd, "--platform", platform)
+	}
+	cmd = append(cmd, "--only-binary", ":all:", "--dry-run", "--report", outputFileName)
+
+	log.Info("Running pip install command", slog.String("command", strings.Join(cmd, " ")))
+	if err := nixcmd.Develop(ctx, stdout, stderr, codePath, cmd...); err != nil {
 		return nil, fmt.Errorf("failed to run pip install: %w", err)
 	}
+
 	fileContents, err := os.ReadFile(outputFileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read pip install report file: %w", err)
@@ -122,27 +131,67 @@ func getDownloadInfo(packages []Package, outputDirectory string) (files []downlo
 	return files, nil
 }
 
-var platformToArchitectureMap = map[string]map[string]string{
+const (
+	minLibc2Version = 17
+	maxLibc2Version = 40
+)
+
+func getLinuxPythonPlatforms(architecture string) (platforms []string) {
+	platforms = make([]string, maxLibc2Version-minLibc2Version+2)
+	for i := maxLibc2Version; i >= minLibc2Version; i-- {
+		platforms[maxLibc2Version-i] = fmt.Sprintf("manylinux_2_%d_%s", i, architecture)
+	}
+	platforms[maxLibc2Version-minLibc2Version+1] = fmt.Sprintf("manylinux2014_%s", architecture)
+	return platforms
+}
+
+func getMacOSPythonPlatformsX86_64() (platforms []string) {
+	platforms = append(platforms, "macosx_11_0_universal2")
+	for major := 13; major >= 10; major-- {
+		var minMinor int
+		if major == 10 {
+			minMinor = 9
+		} else {
+			minMinor = 0
+		}
+		for minor := 99; minor >= minMinor; minor-- {
+			platforms = append(platforms, fmt.Sprintf("macosx_%d_%d_x86_64", major, minor))
+		}
+	}
+	return platforms
+}
+
+func getMacOSPythonPlatformsAarch64() (platforms []string) {
+	platforms = append(platforms, "macosx_11_0_universal2")
+	for major := 14; major >= 11; major-- {
+		for minor := 99; minor >= 0; minor-- {
+			platforms = append(platforms, fmt.Sprintf("macosx_%d_%d_arm64", major, minor))
+		}
+	}
+	return platforms
+}
+
+var platformToArchitectureMap = map[string]map[string][]string{
 	"linux": {
-		"x86_64":  "manylinux2014_x86_64",
-		"aarch64": "manylinux2014_aarch64",
+		"x86_64":  getLinuxPythonPlatforms("x86_64"),
+		"aarch64": getLinuxPythonPlatforms("aarch64"),
 	},
 	"darwin": {
-		"x86_64":  "macosx_10_9_x86_64",
-		"aarch64": "macosx_11_0_arm64",
+		"x86_64":  getMacOSPythonPlatformsX86_64(),
+		"aarch64": getMacOSPythonPlatformsAarch64(),
 	},
 }
 
-func getPythonPlatform(platform, architecture string) (string, error) {
+func getPythonPlatforms(platform, architecture string) ([]string, error) {
 	platform = strings.ToLower(platform)
 	architecture = strings.ToLower(architecture)
 	architectureToPythonPlatformMap, ok := platformToArchitectureMap[platform]
 	if !ok {
-		return "", fmt.Errorf("unknown python platform %s (architecture %s)", platform, architecture)
+		return nil, fmt.Errorf("unknown python platform %s (architecture %s)", platform, architecture)
 	}
-	pythonPlatform, ok := architectureToPythonPlatformMap[architecture]
+	pythonPlatforms, ok := architectureToPythonPlatformMap[architecture]
 	if !ok {
-		return "", fmt.Errorf("unknown python architecture %s for platform %s", architecture, platform)
+		return nil, fmt.Errorf("unknown python architecture %s for platform %s", architecture, platform)
 	}
-	return pythonPlatform, nil
+	return pythonPlatforms, nil
 }
