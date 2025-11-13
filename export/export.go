@@ -209,9 +209,10 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 		if err := os.MkdirAll(target, 0755); err != nil {
 			return fmt.Errorf("failed to create outputs directory %q: %w", target, err)
 		}
-		evaluatedPath, err := filepath.EvalSymlinks("./result")
+		srcResultPath := filepath.Join(args.Code, "result")
+		evaluatedPath, err := filepath.EvalSymlinks(srcResultPath)
 		if err != nil {
-			return fmt.Errorf("failed to evaluate symlinks for %q: %w", "./result", err)
+			return fmt.Errorf("failed to evaluate symlinks for %q: %w", srcResultPath, err)
 		}
 		fi, err := os.Stat(evaluatedPath)
 		if err != nil {
@@ -227,8 +228,8 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 			},
 			Sync: true,
 		}
-		if err := cp.Copy("./result", target, opt); err != nil {
-			return fmt.Errorf("failed to copy output %q to %q: %w", "./result", target, err)
+		if err := cp.Copy(srcResultPath, target, opt); err != nil {
+			return fmt.Errorf("failed to copy output %q to %q: %w", srcResultPath, target, err)
 		}
 		log.Info("Completed operation", slog.String("ref", ref), slog.Int("item", i+1), slog.Int("total", len(drvs)))
 	}
