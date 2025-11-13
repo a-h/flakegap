@@ -89,8 +89,6 @@ func exportCmd(ctx context.Context) error {
 	cmdFlags.StringVar(&logLevelFlag, "log-level", "info", "")
 	cmdFlags.StringVar(&args.TemporaryPath, "temporary-path", "", "Directory to write temporary files to")
 	cmdFlags.BoolVar(&args.ExportNix, "export-nix", true, "Export the Nix store paths required to build the flake.")
-	cmdFlags.BoolVar(&args.ExportPyPi, "export-pypi", true, "Export PyPi whl files from requirements.txt.")
-	cmdFlags.BoolVar(&args.ExportNPM, "export-npm", true, "Export NPM packages from package-lock.json.")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
 	if args.ExportFileName == "" {

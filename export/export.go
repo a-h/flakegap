@@ -13,8 +13,6 @@ import (
 	"slices"
 
 	"github.com/a-h/flakegap/archive"
-	"github.com/a-h/flakegap/export/npm"
-	"github.com/a-h/flakegap/export/pypi"
 	"github.com/a-h/flakegap/nixcmd"
 	"github.com/dustin/go-humanize"
 	"github.com/nix-community/go-nix/pkg/narinfo"
@@ -36,10 +34,6 @@ type Args struct {
 	TemporaryPath string
 	// ExportNix indicates whether to export Nix packages.
 	ExportNix bool
-	// ExportPyPi indicates whether to export Python packages.
-	ExportPyPi bool
-	// ExportNPM indicates whether to export NPM packages.
-	ExportNPM bool
 	// Help shows usage and quits.
 	Help bool
 }
@@ -84,11 +78,6 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		return fmt.Errorf("failed to export Nix closures: %w", err)
 	}
 
-	log.Info("Exporting packages")
-	if err := exportPackages(ctx, log, args); err != nil {
-		return fmt.Errorf("failed to export packages: %w", err)
-	}
-
 	log.Info("Copying source code")
 	srcOutputDir := filepath.Join(nixExportPath, "source")
 	if err := os.MkdirAll(srcOutputDir, 0755); err != nil {
@@ -130,66 +119,6 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 
 	log.Info("Complete", slog.String("uncompressedSize", humanize.Bytes(uint64(size))))
-
-	return nil
-}
-
-func exportPackages(ctx context.Context, log *slog.Logger, args Args) (err error) {
-	if !args.ExportNPM && !args.ExportPyPi {
-		log.Info("Skipping package export, no package managers enabled")
-		return nil
-	}
-
-	// Look for package-lock.json, requirements.txt, but don't look inside package directories themselves.
-	ignore := []string{".git", "node_modules", ".venv", "nix-export", "result", "coverage.out", ".DS_Store"}
-	packageFiles := make(chan string, 16)
-	go func() {
-		defer close(packageFiles)
-		filepath.WalkDir(args.Code, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return fmt.Errorf("failed to walk %q: %w", path, err)
-			}
-			if cancel := ctx.Err(); cancel != nil {
-				return cancel
-			}
-			if d.IsDir() {
-				if slices.Contains(ignore, d.Name()) {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if strings.HasSuffix(d.Name(), "package-lock.json") || strings.HasSuffix(d.Name(), "requirements.txt") {
-				packageFiles <- path
-			}
-			return nil
-		})
-	}()
-
-	// Process package files.
-	for packageFile := range packageFiles {
-		log.Info("Exporting package file", slog.String("file", packageFile))
-		if strings.HasSuffix(packageFile, "package-lock.json") {
-			if !args.ExportNPM {
-				log.Info("Skipping npm package-lock.json export, --export-npm is not enabled")
-				continue
-			}
-			if err := npm.Export(ctx, log, os.Stdout, os.Stderr, args.Code, packageFile); err != nil {
-				return fmt.Errorf("failed to export npm package-lock.json %q: %w", packageFile, err)
-			}
-			continue
-		}
-		if strings.HasSuffix(packageFile, "requirements.txt") {
-			if !args.ExportPyPi {
-				log.Info("Skipping pypi requirements.txt export, --export-pypi is not enabled")
-				continue
-			}
-			if err := pypi.Export(ctx, log, os.Stdout, os.Stderr, args.Platform, args.Architecture, args.Code, packageFile); err != nil {
-				return fmt.Errorf("failed to export requirements.txt %q: %w", packageFile, err)
-			}
-			continue
-		}
-		log.Warn("Unknown package file type, skipping", slog.String("file", packageFile))
-	}
 
 	return nil
 }
