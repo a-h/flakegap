@@ -18,7 +18,7 @@ func FlakeShow(stdout, stderr io.Writer, codeDir string) (op FlakeShowOutput, er
 
 	stdoutBuffer := new(bytes.Buffer)
 
-	cmd := exec.Command(nixPath, "flake", "show", "--json", "--all-systems")
+	cmd := exec.Command(nixPath, "flake", "show", "--json", "--json-format", "1", "--all-systems")
 	cmd.Dir = codeDir
 
 	w, closer := ErrorBuffer(stdout, stderr)
