@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -16,30 +17,45 @@ func PathInfo(stdout, stderr io.Writer, codeDir string, recursive, derivation bo
 		return paths, fmt.Errorf("failed to find nix on path: %w", err)
 	}
 
-	stdoutBuffer := new(bytes.Buffer)
-
-	args := []string{"path-info", "--json"}
+	base := []string{"path-info", "--json"}
 	if recursive {
-		args = append(args, "--recursive")
+		base = append(base, "--recursive")
 	}
 	if derivation {
-		args = append(args, "--derivation")
-	}
-	args = append(args, ref)
-	cmd := exec.Command(nixPath, args...)
-	cmd.Env = getEnv()
-	cmd.Stdout = stdoutBuffer
-	cmd.Stderr = stderr
-	cmd.Dir = codeDir
-	if err = cmd.Run(); err != nil {
-		return paths, fmt.Errorf("failed to run nix %s: %w", strings.Join(args, " "), err)
+		base = append(base, "--derivation")
 	}
 
-	paths, err = getPathInfo(stdoutBuffer.Bytes())
+	args := append(slices.Clone(base), "--json-format", "1", ref)
+	outBytes, errBytes, runErr := runPathInfo(nixPath, codeDir, args)
+	if runErr != nil {
+		if strings.Contains(string(errBytes), "unrecognised flag") {
+			// --json-format is not supported by this Nix version; retry without it.
+			args = append(base, ref)
+			outBytes, errBytes, runErr = runPathInfo(nixPath, codeDir, args)
+		}
+		if runErr != nil {
+			stderr.Write(errBytes) //nolint
+			return paths, fmt.Errorf("failed to run nix %s: %w", strings.Join(args, " "), runErr)
+		}
+	}
+	stderr.Write(errBytes) //nolint
+
+	paths, err = getPathInfo(outBytes)
 	if err != nil {
 		return paths, fmt.Errorf("failed to get path info from nix %s: %w", strings.Join(args, " "), err)
 	}
 	return paths, nil
+}
+
+func runPathInfo(nixPath, codeDir string, args []string) (out []byte, errOut []byte, err error) {
+	var outBuf, errBuf bytes.Buffer
+	cmd := exec.Command(nixPath, args...)
+	cmd.Env = getEnv()
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	cmd.Dir = codeDir
+	err = cmd.Run()
+	return outBuf.Bytes(), errBuf.Bytes(), err
 }
 
 func getPathInfo(stdout []byte) (paths []string, err error) {
@@ -72,6 +88,7 @@ func getPathInfo(stdout []byte) (paths []string, err error) {
 			paths[i] = k
 			i++
 		}
+		slices.Sort(paths)
 		return paths, nil
 	}
 

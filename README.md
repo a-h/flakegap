@@ -321,6 +321,12 @@ echo "Validating Flake requirements..."
 go run ../cmd/flakegap validate -image ghcr.io/a-h/flakegap:local
 ```
 
+### unit-test
+
+```bash
+go test ./... -timeout 10m
+```
+
 ### push-tag
 
 ```bash

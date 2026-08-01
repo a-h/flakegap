@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     gitignore = {
       url = "github:hercules-ci/gitignore.nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -10,7 +10,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     version = {
-      url = "github:a-h/version/0.0.10";
+      url = "github:a-h/version/44731ff8abe5cda38e3ab65de6e216279cfff8db";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
