@@ -4,19 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
-
 	"slices"
+	"strings"
 
 	"github.com/a-h/flakegap/archive"
 	"github.com/a-h/flakegap/nixcmd"
 	"github.com/dustin/go-humanize"
 	"github.com/nix-community/go-nix/pkg/narinfo"
-	cp "github.com/otiai10/copy"
 )
 
 type Args struct {
@@ -84,26 +84,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		return fmt.Errorf("failed to create source output directory: %w", err)
 	}
 	ignore := []string{".direnv", "nix-export", "nix-export.tar.gz", "result", "coverage.out", ".DS_Store"}
-	symlinks := make(map[string]struct{})
-	opt := cp.Options{
-		Skip: func(srcinfo os.FileInfo, src, dest string) (bool, error) {
-			return slices.Contains(ignore, srcinfo.Name()), nil
-		},
-		OnSymlink: func(src string) cp.SymlinkAction {
-			symlinks[src] = struct{}{}
-			return cp.Deep
-		},
-		OnError: func(src, dest string, err error) error {
-			if _, ok := symlinks[src]; ok {
-				// Ignore errors for symlinks.
-				log.Warn("Ignoring symlink error", slog.String("src", src), slog.String("dest", dest), slog.Any("error", err))
-				return nil
-			}
-			return err
-		},
-		Sync: true,
-	}
-	if err := cp.Copy(args.Code, srcOutputDir, opt); err != nil {
+	if err := os.CopyFS(srcOutputDir, newFilteredFS(os.DirFS(args.Code), ignore)); err != nil {
 		return fmt.Errorf("failed to copy source code: %w", err)
 	}
 
@@ -222,13 +203,7 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 			target = filepath.Join(target, "result")
 		}
 		log.Info("Copying build outputs to target", slog.String("ref", ref), slog.String("target", target))
-		opt := cp.Options{
-			OnSymlink: func(src string) cp.SymlinkAction {
-				return cp.Deep
-			},
-			Sync: true,
-		}
-		if err := cp.Copy(srcResultPath, target, opt); err != nil {
+		if err := copyOutput(srcResultPath, evaluatedPath, target, fi); err != nil {
 			return fmt.Errorf("failed to copy output %q to %q: %w", srcResultPath, target, err)
 		}
 		log.Info("Completed operation", slog.String("ref", ref), slog.Int("item", i+1), slog.Int("total", len(drvs)))
@@ -247,6 +222,85 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 	}
 	// End of the manually exported code.
 	return nil
+}
+
+type filteredFS struct {
+	fsys   fs.FS
+	ignore []string
+}
+
+func newFilteredFS(fsys fs.FS, ignore []string) filteredFS {
+	return filteredFS{fsys: fsys, ignore: ignore}
+}
+
+func (f filteredFS) Open(name string) (fs.File, error) {
+	file, err := f.fsys.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return &filteredFile{File: file, ignore: f.ignore}, nil
+}
+
+func (f filteredFS) ReadLink(name string) (string, error) {
+	rl, ok := f.fsys.(fs.ReadLinkFS)
+	if !ok {
+		return "", &fs.PathError{Op: "readlink", Path: name, Err: errors.ErrUnsupported}
+	}
+	return rl.ReadLink(name)
+}
+
+type filteredFile struct {
+	fs.File
+	ignore []string
+}
+
+func (f *filteredFile) ReadDir(n int) (entries []fs.DirEntry, err error) {
+	dir, ok := f.File.(fs.ReadDirFile)
+	if !ok {
+		return nil, &fs.PathError{Op: "readdir", Path: ".", Err: errors.New("not a directory")}
+	}
+	all, err := dir.ReadDir(n)
+	if err != nil {
+		return all, err
+	}
+	entries = make([]fs.DirEntry, 0, len(all))
+	for _, e := range all {
+		if !slices.Contains(f.ignore, e.Name()) {
+			entries = append(entries, e)
+		}
+	}
+	return entries, nil
+}
+
+func copyOutput(srcPath, evaluatedPath, target string, fi os.FileInfo) error {
+	if !fi.IsDir() {
+		return copyFile(evaluatedPath, target)
+	}
+	return os.CopyFS(target, os.DirFS(srcPath))
+}
+
+func copyFile(src, dst string) (err error) {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	r, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	w, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode()&0777)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		closeErr := w.Close()
+		if err == nil {
+			err = closeErr
+		}
+	}()
+	_, err = io.Copy(w, r)
+	return err
 }
 
 func writeManifest(ctx context.Context, nixExportPath string) (err error) {

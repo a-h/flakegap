@@ -250,7 +250,6 @@ docker buildx build --load --platform linux/arm64 -t ghcr.io/a-h/flakegap:local 
 ### docker-run
 
 dir: testproject
-interactive: true
 
 ```bash
 docker run -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:latest
@@ -259,7 +258,6 @@ docker run -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:l
 ### docker-run-interactive
 
 dir: testproject
-interactive: true
 
 ```bash
 docker run -it --rm --entrypoint=/bin/bash -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:latest
@@ -268,7 +266,6 @@ docker run -it --rm --entrypoint=/bin/bash -v $PWD:/code:Z -v $PWD/nix-export:/n
 ### docker-run-interactive-local
 
 dir: testproject
-interactive: true
 
 ```bash
 docker run -it --rm --entrypoint=/bin/bash -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:local
@@ -281,7 +278,6 @@ After running an export, you can test whether it's possible to build the results
 To see the graph of dependencies, build the output, and you can see the graph with: `nix-store -q --graph `nix path-info --derivation .#app-docker-image` > output.dot`
 
 dir: testproject
-interactive: true
 
 ```bash
 docker run -it --rm --network=none --entrypoint=/bin/bash -v $PWD:/code:Z -v $PWD/nix-export:/nix-export ghcr.io/a-h/flakegap:local
@@ -290,7 +286,6 @@ docker run -it --rm --network=none --entrypoint=/bin/bash -v $PWD:/code:Z -v $PW
 ### test
 
 dir: testproject
-interactive: true
 
 ```bash
 echo "Testing Nix build..."
@@ -303,7 +298,6 @@ nix run .#default -- validate -image ghcr.io/a-h/flakegap:local
 ### test-local-export
 
 dir: testproject
-interactive: true
 
 ```bash
 echo "Testing Go build without Nix..."
@@ -314,7 +308,6 @@ go run ../cmd/flakegap export
 ### test-local-validate
 
 dir: testproject
-interactive: true
 
 ```bash
 echo "Validating Flake requirements..."
