@@ -231,6 +231,26 @@ docker load < result
 docker tag ghcr.io/a-h/flakegap:latest ghcr.io/a-h/flakegap:local
 ```
 
+### docker-build-local-amd64
+
+Requires Linux. Mac users should use `docker pull ghcr.io/a-h/flakegap:latest` instead.
+
+```bash
+nix build ".#packages.x86_64-linux.docker-image"
+docker load < result
+docker tag ghcr.io/a-h/flakegap:latest ghcr.io/a-h/flakegap:local
+```
+
+### docker-build-local-arm64
+
+Requires Linux. Mac users should use `docker pull ghcr.io/a-h/flakegap:latest` instead.
+
+```bash
+nix build ".#packages.aarch64-linux.docker-image"
+docker load < result
+docker tag ghcr.io/a-h/flakegap:latest ghcr.io/a-h/flakegap:local
+```
+
 ### docker-run
 
 dir: testproject
