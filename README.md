@@ -221,30 +221,14 @@ nix build .#validate
 nix develop
 ```
 
-### deps-update
+### docker-build-local
+
+Requires Linux. Mac users should use `docker pull ghcr.io/a-h/flakegap:latest` instead.
 
 ```bash
-./deps-update.sh
-```
-
-### docker-build-local-all
-
-This requires the containerd setting to be enabled, since by default the local Docker store can't store multiple architectures.
-
-```bash
-docker buildx build --load --platform linux/amd64,linux/arm64 -t ghcr.io/a-h/flakegap:local .
-```
-
-### docker-build-local-amd64
-
-```bash
-docker buildx build --load --platform linux/amd64 -t ghcr.io/a-h/flakegap:local .
-```
-
-### docker-build-local-arm64
-
-```bash
-docker buildx build --load --platform linux/arm64 -t ghcr.io/a-h/flakegap:local .
+nix build ".#packages.x86_64-linux.docker-image"
+docker load < result
+docker tag ghcr.io/a-h/flakegap:latest ghcr.io/a-h/flakegap:local
 ```
 
 ### docker-run
