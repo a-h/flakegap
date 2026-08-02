@@ -10,12 +10,19 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     version = {
-      url = "github:a-h/version/44731ff8abe5cda38e3ab65de6e216279cfff8db";
+      url = "github:a-h/version/0.0.12";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { self, nixpkgs, gitignore, xc, version }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      gitignore,
+      xc,
+      version,
+    }:
     let
       allSystems = [
         "x86_64-linux" # 64-bit Intel/AMD Linux
@@ -24,24 +31,45 @@
         "aarch64-darwin" # 64-bit ARM macOS
       ];
 
-      forAllSystems = f: nixpkgs.lib.genAttrs allSystems (system: f {
-        system = system;
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [
-            (self: super: {
-              xc = xc.packages.${system}.xc;
-              version = version.packages.${system}.default;
-            })
-          ];
-        };
-      });
+      forAllSystems =
+        f:
+        nixpkgs.lib.genAttrs allSystems (
+          system:
+          f {
+            system = system;
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = [
+                (self: super: {
+                  xc = xc.packages.${system}.xc;
+                  version = version.packages.${system}.default;
+                })
+              ];
+            };
+          }
+        );
+
+      nixConf = ''
+        build-users-group =
+        experimental-features = nix-command flakes
+        filter-syscalls = false
+        system-features = nixos-test benchmark big-parallel kvm
+      '';
 
       # Build Docker containers.
-      dockerImage = { pkgs }:
+      dockerImage =
+        { pkgs }:
         let
-          validateApp = app { name = "validate"; pkgs = pkgs; version = versionFileContents; };
-          flakegapApp = app { name = "flakegap"; pkgs = pkgs; version = versionFileContents; };
+          validateApp = app {
+            name = "validate";
+            pkgs = pkgs;
+            version = versionFileContents;
+          };
+          flakegapApp = app {
+            name = "flakegap";
+            pkgs = pkgs;
+            version = versionFileContents;
+          };
         in
         pkgs.dockerTools.buildLayeredImage {
           name = "ghcr.io/a-h/flakegap";
@@ -61,12 +89,7 @@
           enableFakechroot = true;
           fakeRootCommands = ''
             mkdir -p /etc/nix
-            cat > /etc/nix/nix.conf <<'EOF'
-build-users-group =
-experimental-features = nix-command flakes
-filter-syscalls = false
-system-features = nixos-test benchmark big-parallel kvm
-EOF
+            printf '%s' '${nixConf}' > /etc/nix/nix.conf
             mkdir -p /nix/var/nix/db
             mkdir -p /nix/var/nix/gcroots/auto
             mkdir -p /nix/var/nix/profiles/per-user/root
@@ -92,26 +115,32 @@ EOF
         };
 
       # Build app.
-      app = { name, pkgs, version }: pkgs.buildGoModule {
-        name = name;
-        src = gitignore.lib.gitignoreSource ./.;
-        go = pkgs.go;
-        subPackages = [ "cmd/${name}" ];
-        vendorHash = "sha256-reMs1RPiKy1/u+Zov6k2mi1s6WHs54hHbeQMNvtxWC0=";
-        goSum = ./go.sum;
-        env = {
-          CGO_ENABLED = "0";
+      app =
+        {
+          name,
+          pkgs,
+          version,
+        }:
+        pkgs.buildGoModule {
+          name = name;
+          src = gitignore.lib.gitignoreSource ./.;
+          go = pkgs.go;
+          subPackages = [ "cmd/${name}" ];
+          vendorHash = "sha256-N8CGnrKa//15Yo3rFcgs1gs+O12fjMdUnRjF/oMov8M=";
+          goSum = ./go.sum;
+          env = {
+            CGO_ENABLED = "0";
+          };
+          flags = [
+            "-trimpath"
+          ];
+          ldflags = [
+            "-s"
+            "-w"
+            "-extldflags -static"
+            "-X main.version=${version}"
+          ];
         };
-        flags = [
-          "-trimpath"
-        ];
-        ldflags = [
-          "-s"
-          "-w"
-          "-extldflags -static"
-          "-X main.version=${version}"
-        ];
-      };
 
       # Development tools used.
       devTools = pkgs: [
@@ -135,17 +164,36 @@ EOF
     {
       # `nix build` builds the app.
       # `nix build .#docker-image` builds the Docker container (Linux only).
-      packages = forAllSystems ({ system, pkgs }: {
-        default = app { name = "flakegap"; pkgs = pkgs; version = versionFileContents; };
-        validate = app { name = "validate"; pkgs = pkgs; version = versionFileContents; };
-      } // (if pkgs.stdenv.isLinux then {
-        docker-image = dockerImage { pkgs = pkgs; };
-      } else { }));
+      packages = forAllSystems (
+        { system, pkgs }:
+        {
+          default = app {
+            name = "flakegap";
+            pkgs = pkgs;
+            version = versionFileContents;
+          };
+          validate = app {
+            name = "validate";
+            pkgs = pkgs;
+            version = versionFileContents;
+          };
+        }
+        // (
+          if pkgs.stdenv.isLinux then
+            {
+              docker-image = dockerImage { pkgs = pkgs; };
+            }
+          else
+            { }
+        )
+      );
       # `nix develop` provides a shell containing required tools.
-      devShells = forAllSystems ({ system, pkgs }: {
-        default = pkgs.mkShell {
-          buildInputs = (devTools pkgs);
-        };
-      });
+      devShells = forAllSystems (
+        { system, pkgs }: {
+          default = pkgs.mkShell {
+            buildInputs = (devTools pkgs);
+          };
+        }
+      );
     };
 }
