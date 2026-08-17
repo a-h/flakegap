@@ -34,6 +34,9 @@ type Args struct {
 	TemporaryPath string
 	// ExportNix indicates whether to export Nix packages.
 	ExportNix bool
+	// Outputs is an optional list of specific flake output references to export, e.g.
+	// [".#devShells.x86_64-linux.default"]. When empty, all outputs are exported.
+	Outputs []string
 	// Help shows usage and quits.
 	Help bool
 }
@@ -129,11 +132,14 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 		Path:   filepath.Join(nixExportPath, "nix-store"),
 	}).String()
 
-	op, err := nixcmd.FlakeShow(os.Stdout, os.Stderr, args.Code)
-	if err != nil {
-		return fmt.Errorf("failed to gather nix outputs: %w", err)
+	drvs := args.Outputs
+	if len(drvs) == 0 {
+		op, err := nixcmd.FlakeShow(os.Stdout, os.Stderr, args.Code)
+		if err != nil {
+			return fmt.Errorf("failed to gather nix outputs: %w", err)
+		}
+		drvs = op.Derivations(args.Architecture, args.Platform)
 	}
-	drvs := op.Derivations(args.Architecture, args.Platform)
 
 	if ctx.Err() != nil {
 		log.Warn("Context cancelled, skipping build", slog.Any("outputs", drvs))

@@ -8,12 +8,25 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/a-h/flakegap/export"
 	"github.com/a-h/flakegap/importcmd"
 	"github.com/a-h/flakegap/sloghandler"
 	"github.com/a-h/flakegap/validate"
 )
+
+// stringSliceFlag accumulates repeated flag values.
+type stringSliceFlag []string
+
+func (s *stringSliceFlag) String() string {
+	return strings.Join(*s, ", ")
+}
+
+func (s *stringSliceFlag) Set(v string) error {
+	*s = append(*s, v)
+	return nil
+}
 
 var version string
 
@@ -80,6 +93,7 @@ func exportCmd(ctx context.Context) error {
 	args := export.Args{}
 	var verboseFlag bool
 	var logLevelFlag string
+	var outputsFlag stringSliceFlag
 	cmdFlags := flag.NewFlagSet("export", flag.ContinueOnError)
 	cmdFlags.StringVar(&args.Code, "source-path", ".", "Path to the directory containing the flake.")
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "", "Filename to write the output file to - defaults to <source-path>/nix-export.tar.gz")
@@ -89,11 +103,13 @@ func exportCmd(ctx context.Context) error {
 	cmdFlags.StringVar(&logLevelFlag, "log-level", "info", "")
 	cmdFlags.StringVar(&args.TemporaryPath, "temporary-path", "", "Directory to write temporary files to")
 	cmdFlags.BoolVar(&args.ExportNix, "export-nix", true, "Export the Nix store paths required to build the flake.")
+	cmdFlags.Var(&outputsFlag, "output", "Specific flake output to export, e.g. .#devShells.x86_64-linux.default. May be repeated. Defaults to all outputs.")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
 	if args.ExportFileName == "" {
 		args.ExportFileName = filepath.Join(args.Code, "nix-export.tar.gz")
 	}
+	args.Outputs = []string(outputsFlag)
 	if args.Help {
 		cmdFlags.PrintDefaults()
 		os.Exit(1)
