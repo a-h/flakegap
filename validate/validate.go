@@ -55,7 +55,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		return fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer os.RemoveAll(tgtPath)
-	m, err := archive.Unarchive(ctx, args.ExportFileName, tgtPath)
+	m, err := archive.Unarchive(ctx, log, args.ExportFileName, tgtPath)
 	if err != nil {
 		return fmt.Errorf("failed to unarchive: %w", err)
 	}

@@ -33,6 +33,18 @@ func Archive(ctx context.Context, srcPath, tgtPath string) (size int64, err erro
 			return fmt.Errorf("failed to get relative path: %w", err)
 		}
 
+		if info.Mode()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(path)
+			if err != nil {
+				return fmt.Errorf("failed to read symlink %q: %w", path, err)
+			}
+			return tw.WriteHeader(&tar.Header{
+				Name:     name,
+				Linkname: linkTarget,
+				Typeflag: tar.TypeSymlink,
+			})
+		}
+
 		hdr := &tar.Header{
 			Name:     name,
 			Size:     info.Size(),
@@ -47,11 +59,12 @@ func Archive(ctx context.Context, srcPath, tgtPath string) (size int64, err erro
 			return fmt.Errorf("failed to write tar header: %w", err)
 		}
 		if !info.IsDir() {
-			data, err := os.Open(path)
+			f, err := os.Open(path)
 			if err != nil {
 				return fmt.Errorf("failed to open file %q: %w", path, err)
 			}
-			length, err := io.Copy(tw, data)
+			defer f.Close()
+			length, err := io.Copy(tw, f)
 			if err != nil {
 				return fmt.Errorf("failed to copy file %q: %w", path, err)
 			}

@@ -41,7 +41,7 @@ func run(log *slog.Logger, architecture, platform, codeDir, sourceStore string) 
 
 	// nix copy --all --no-check-sigs --from file:///nix-export/nix-store/
 	// nix copy --all --derivation --no-check-sigs --from file:///nix-export/nix-store/
-	if err = nixcmd.CopyFromAll(os.Stdout, os.Stderr, codeDir, sourceStore); err != nil {
+	if err = nixcmd.CopyFromAll(log, os.Stdout, os.Stderr, codeDir, sourceStore); err != nil {
 		return fmt.Errorf("failed to copy from /nix-export/nix-store: %w", err)
 	}
 

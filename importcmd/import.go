@@ -47,21 +47,25 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	}
 	defer os.RemoveAll(nixExportPath)
 
-	m, err := archive.Unarchive(ctx, args.ImportFileName, nixExportPath)
-	log.Info("Extracted archive", slog.String("import-filename", args.ImportFileName), slog.Int("files", m.Files), slog.Int("dirs", m.Dirs))
+	log.Info("Extracting archive", slog.String("import-filename", args.ImportFileName))
+	m, err := archive.Unarchive(ctx, log, args.ImportFileName, nixExportPath)
+	if err != nil {
+		return fmt.Errorf("failed to extract archive: %w", err)
+	}
+	log.Info("Extracted archive", slog.String("import-filename", args.ImportFileName), slog.Int("files-extracted", m.Files), slog.Int("dirs-extracted", m.Dirs))
 
 	// Check for presence of the nix-store directory in the extracted directory.
 	nixStorePath := filepath.Join(nixExportPath, "nix-store")
-	if _, err := os.Stat(nixStorePath); err != nil {
+	if _, err = os.Stat(nixStorePath); err != nil {
 		return fmt.Errorf("nix-store directory not found in extracted archive: %w", err)
 	}
 
 	sourceStore := fmt.Sprintf("file://%s", nixStorePath)
-	log.Info("Restoring Nix store from export", slog.String("nix-store", nixStorePath))
+	log.Info("Importing export to local Nix store", slog.String("nix-store", nixStorePath))
 
 	// nix copy --all --no-check-sigs --from file:///nix-export/nix-store/
 	// nix copy --all --derivation --no-check-sigs --from file:///nix-export/nix-store/
-	if err = nixcmd.CopyFromAll(os.Stdout, os.Stderr, "", sourceStore); err != nil {
+	if err = nixcmd.CopyFromAll(log, os.Stdout, os.Stderr, "", sourceStore); err != nil {
 		return fmt.Errorf("failed to copy from /nix-export/nix-store: %w", err)
 	}
 

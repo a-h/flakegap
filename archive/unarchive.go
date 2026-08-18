@@ -6,9 +6,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
 )
 
 type Metrics struct {
@@ -16,7 +17,7 @@ type Metrics struct {
 	Dirs  int
 }
 
-func Unarchive(ctx context.Context, src, dst string) (m Metrics, err error) {
+func Unarchive(ctx context.Context, log *slog.Logger, src, dst string) (m Metrics, err error) {
 	file, err := os.Open(src)
 	if err != nil {
 		return m, fmt.Errorf("failed to open .tar.gz file %q: %w", src, err)
@@ -30,6 +31,7 @@ func Unarchive(ctx context.Context, src, dst string) (m Metrics, err error) {
 	defer gzipReader.Close()
 
 	tarReader := tar.NewReader(gzipReader)
+	lastLog := time.Now()
 	for {
 		if ctx.Err() != nil {
 			return m, ctx.Err()
@@ -41,8 +43,12 @@ func Unarchive(ctx context.Context, src, dst string) (m Metrics, err error) {
 		if err != nil {
 			return m, err
 		}
+		if time.Since(lastLog) >= 15*time.Second {
+			log.Info("Extracting archive", slog.Int("files-extracted", m.Files), slog.Int("dirs-extracted", m.Dirs))
+			lastLog = time.Now()
+		}
 
-		if strings.Contains(header.Name, "..") {
+		if !filepath.IsLocal(header.Name) {
 			return m, fmt.Errorf("tar contains invalid path: %s", header.Name)
 		}
 		target := filepath.Join(dst, header.Name)
@@ -67,6 +73,14 @@ func Unarchive(ctx context.Context, src, dst string) (m Metrics, err error) {
 			}
 			outFile.Close()
 			if err := os.Chmod(target, os.FileMode(header.Mode)); err != nil {
+				return m, err
+			}
+		case tar.TypeSymlink:
+			m.Files++
+			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+				return m, err
+			}
+			if err := os.Symlink(header.Linkname, target); err != nil {
 				return m, err
 			}
 		default:

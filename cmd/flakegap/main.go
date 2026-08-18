@@ -104,6 +104,7 @@ func exportCmd(ctx context.Context) error {
 	cmdFlags.StringVar(&args.TemporaryPath, "temporary-path", "", "Directory to write temporary files to")
 	cmdFlags.BoolVar(&args.ExportNix, "export-nix", true, "Export the Nix store paths required to build the flake.")
 	cmdFlags.Var(&outputsFlag, "output", "Specific flake output to export, e.g. .#devShells.x86_64-linux.default. May be repeated. Defaults to all outputs.")
+	cmdFlags.BoolVar(&args.Clean, "clean", false, "Remove the working directory before starting, forcing a full re-export.")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
 	cmdFlags.Parse(os.Args[2:])
 	if args.ExportFileName == "" {

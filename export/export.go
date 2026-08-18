@@ -2,6 +2,7 @@ package export
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -37,6 +38,8 @@ type Args struct {
 	// Outputs is an optional list of specific flake output references to export, e.g.
 	// [".#devShells.x86_64-linux.default"]. When empty, all outputs are exported.
 	Outputs []string
+	// Clean removes the working directory before starting, forcing a full re-export.
+	Clean bool
 	// Help shows usage and quits.
 	Help bool
 }
@@ -58,9 +61,9 @@ func (a Args) Validate() error {
 	return errors.Join(errs...)
 }
 
-func getTemporaryPath(log *slog.Logger, current string) (updated string) {
-	if current != "" {
-		return current
+func resolveBaseDir(log *slog.Logger, override string) string {
+	if override != "" {
+		return override
 	}
 	if home, err := os.UserHomeDir(); err == nil {
 		return home
@@ -69,12 +72,34 @@ func getTemporaryPath(log *slog.Logger, current string) (updated string) {
 	return ""
 }
 
-func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
-	nixExportPath, err := os.MkdirTemp(getTemporaryPath(log, args.TemporaryPath), "flakegap")
+// getWorkingDir returns a deterministic directory for the export working files,
+// derived from the absolute source path so the same export always resumes into
+// the same place.
+func getWorkingDir(log *slog.Logger, args Args) (string, error) {
+	abs, err := filepath.Abs(args.Code)
 	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
+		return "", fmt.Errorf("failed to resolve source path: %w", err)
 	}
-	defer os.RemoveAll(nixExportPath)
+	h := sha256.Sum256([]byte(abs))
+	name := fmt.Sprintf("flakegap-%s-%x", filepath.Base(abs), h[:4])
+	return filepath.Join(resolveBaseDir(log, args.TemporaryPath), name), nil
+}
+
+func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
+	nixExportPath, err := getWorkingDir(log, args)
+	if err != nil {
+		return fmt.Errorf("failed to compute working directory: %w", err)
+	}
+	if args.Clean {
+		log.Info("Cleaning working directory", slog.String("path", nixExportPath))
+		if err = os.RemoveAll(nixExportPath); err != nil {
+			return fmt.Errorf("failed to clean working directory: %w", err)
+		}
+	}
+	if err = os.MkdirAll(nixExportPath, 0755); err != nil {
+		return fmt.Errorf("failed to create working directory: %w", err)
+	}
+	log.Info("Working directory", slog.String("path", nixExportPath))
 
 	log.Info("Exporting Nix closures")
 	if err := exportNix(ctx, log, args, nixExportPath); err != nil {
@@ -83,6 +108,9 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 
 	log.Info("Copying source code")
 	srcOutputDir := filepath.Join(nixExportPath, "source")
+	if err := os.RemoveAll(srcOutputDir); err != nil {
+		return fmt.Errorf("failed to remove existing source directory: %w", err)
+	}
 	if err := os.MkdirAll(srcOutputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create source output directory: %w", err)
 	}
@@ -96,10 +124,17 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 		return fmt.Errorf("failed to get store paths: %w", err)
 	}
 
+	warnIfInsufficientDiskSpace(log, nixExportPath, args.ExportFileName)
+
 	log.Info("Archiving output")
 	size, err := archive.Archive(ctx, nixExportPath, args.ExportFileName)
 	if err != nil {
 		return fmt.Errorf("failed to archive: %w", err)
+	}
+
+	log.Info("Cleaning up working directory", slog.String("path", nixExportPath))
+	if err = os.RemoveAll(nixExportPath); err != nil {
+		return fmt.Errorf("failed to clean up working directory: %w", err)
 	}
 
 	log.Info("Complete", slog.String("uncompressedSize", humanize.Bytes(uint64(size))))
@@ -171,14 +206,24 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 		log.Info("Copied nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix), slog.Int("realisedPaths", realisedPathCount))
 	}
 
+	completedDir := filepath.Join(nixExportPath, "completed")
+	if err = os.MkdirAll(completedDir, 0755); err != nil {
+		return fmt.Errorf("failed to create completed directory: %w", err)
+	}
+
 	for i, ref := range drvs {
 		if ctx.Err() != nil {
 			log.Warn("Context cancelled, skipping build", slog.String("ref", ref))
 			return ctx.Err()
 		}
+		markerFile := filepath.Join(completedDir, computeMarkerFileName(ref))
+		if _, err = os.Stat(markerFile); err == nil {
+			log.Info("Skipping already-completed output", slog.String("ref", ref), slog.Int("item", i+1), slog.Int("total", len(drvs)))
+			continue
+		}
 		log.Info("Building", slog.String("ref", ref))
 		// nix build <ref>
-		if err := nixcmd.Build(os.Stdout, os.Stderr, args.Code, ref); err != nil {
+		if err = nixcmd.Build(os.Stdout, os.Stderr, args.Code, ref); err != nil {
 			log.Error("failed to build", slog.Any("error", err))
 			return fmt.Errorf("failed to build %q: %w", ref, err)
 		}
@@ -193,7 +238,7 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 		log.Info("Copied Nix closures to target", slog.String("ref", ref), slog.Int("realisedPaths", realisedPathCount))
 		targetDirParts := strings.Split(strings.TrimPrefix(ref, ".#"), ".")
 		target := filepath.Join(append([]string{nixExportPath, "outputs"}, targetDirParts...)...)
-		if err := os.MkdirAll(target, 0755); err != nil {
+		if err = os.MkdirAll(target, 0755); err != nil {
 			return fmt.Errorf("failed to create outputs directory %q: %w", target, err)
 		}
 		srcResultPath := filepath.Join(args.Code, "result")
@@ -209,8 +254,11 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 			target = filepath.Join(target, "result")
 		}
 		log.Info("Copying build outputs to target", slog.String("ref", ref), slog.String("target", target))
-		if err := copyOutput(srcResultPath, evaluatedPath, target, fi); err != nil {
+		if err = copyOutput(srcResultPath, evaluatedPath, target, fi); err != nil {
 			return fmt.Errorf("failed to copy output %q to %q: %w", srcResultPath, target, err)
+		}
+		if err = os.WriteFile(markerFile, nil, 0644); err != nil {
+			return fmt.Errorf("failed to write completion marker for %q: %w", ref, err)
 		}
 		log.Info("Completed operation", slog.String("ref", ref), slog.Int("item", i+1), slog.Int("total", len(drvs)))
 	}
@@ -307,6 +355,57 @@ func copyFile(src, dst string) (err error) {
 	}()
 	_, err = io.Copy(w, r)
 	return err
+}
+
+// computeMarkerFileName returns a stable filename for a completion marker for the given ref.
+func computeMarkerFileName(ref string) string {
+	h := sha256.Sum256([]byte(ref))
+	return fmt.Sprintf("%x", h)
+}
+
+func warnIfInsufficientDiskSpace(log *slog.Logger, srcPath, outputPath string) {
+	srcSize, err := dirSize(srcPath)
+	if err != nil {
+		log.Warn("Failed to measure working directory size", slog.Any("error", err))
+		return
+	}
+	available, err := availableBytes(filepath.Dir(outputPath))
+	if errors.Is(err, errors.ErrUnsupported) {
+		return
+	}
+	if err != nil {
+		log.Warn("Failed to check available disk space", slog.Any("error", err))
+		return
+	}
+	log.Info("Disk space",
+		slog.String("workingDirectorySize", humanize.Bytes(uint64(srcSize))),
+		slog.String("availableOnOutputFilesystem", humanize.Bytes(available)),
+	)
+	if available < uint64(srcSize) {
+		log.Warn("Disk space may be insufficient for archiving",
+			slog.String("workingDirectorySize", humanize.Bytes(uint64(srcSize))),
+			slog.String("available", humanize.Bytes(available)),
+			slog.String("suggestion", "use --export-filename to write to a larger filesystem, or --temporary-path to relocate the working directory"),
+		)
+	}
+}
+
+func dirSize(path string) (size int64, err error) {
+	err = filepath.WalkDir(path, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		size += info.Size()
+		return nil
+	})
+	return size, err
 }
 
 func writeManifest(ctx context.Context, nixExportPath string) (err error) {
