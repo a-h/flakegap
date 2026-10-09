@@ -17,12 +17,15 @@ import (
 	"github.com/a-h/flakegap/archive"
 	"github.com/a-h/flakegap/nixcmd"
 	"github.com/dustin/go-humanize"
+	"github.com/go-git/go-git/v5"
 	"github.com/nix-community/go-nix/pkg/narinfo"
 )
 
 type Args struct {
 	// Code is the path to the repo on disk that contains a flake.nix file.
 	Code string
+	// Clone the source with git instead of manully copying
+	UseGit bool
 	// ExportFileName is the path to write the output to, e.g. /tmp/nix-export.tar.gz.
 	ExportFileName string
 	// Architecture to build for.
@@ -90,6 +93,23 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to compute working directory: %w", err)
 	}
+	if args.UseGit {
+		repo, err := git.PlainOpen(args.Code)
+		if err != nil {
+			return fmt.Errorf("failed to open source directory as git repository: %w", err)
+		}
+		worktree, err := repo.Worktree()
+		if err != nil {
+			return fmt.Errorf("failed to get git worktree from source repository %w", err)
+		}
+		status, err := worktree.Status()
+		if err != nil {
+			return fmt.Errorf("failed to get worktree status of source repository %w", err)
+		}
+		if !status.IsClean() {
+			return fmt.Errorf("source repository is dirty, refusing to export since the exported nix-store may not reflect the exported source repository")
+		}
+	}
 	if args.Clean {
 		log.Info("Cleaning working directory", slog.String("path", nixExportPath))
 		if err = os.RemoveAll(nixExportPath); err != nil {
@@ -111,12 +131,18 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	if err := os.RemoveAll(srcOutputDir); err != nil {
 		return fmt.Errorf("failed to remove existing source directory: %w", err)
 	}
-	if err := os.MkdirAll(srcOutputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create source output directory: %w", err)
-	}
-	ignore := []string{".direnv", "nix-export", "nix-export.tar.gz", "result", "coverage.out", ".DS_Store"}
-	if err := os.CopyFS(srcOutputDir, newFilteredFS(os.DirFS(args.Code), ignore)); err != nil {
-		return fmt.Errorf("failed to copy source code: %w", err)
+	if args.UseGit {
+		if _, err := git.PlainClone(srcOutputDir, false, &git.CloneOptions{URL: args.Code}); err != nil {
+			return fmt.Errorf("failed to git clone code to output directory: %w", err)
+		}
+	} else {
+		if err := os.MkdirAll(srcOutputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create source output directory: %w", err)
+		}
+		ignore := []string{".direnv", "nix-export", "nix-export.tar.gz", "result", "coverage.out", ".DS_Store"}
+		if err := os.CopyFS(srcOutputDir, newFilteredFS(os.DirFS(args.Code), ignore)); err != nil {
+			return fmt.Errorf("failed to copy source code: %w", err)
+		}
 	}
 
 	log.Info("Collecting store paths")
