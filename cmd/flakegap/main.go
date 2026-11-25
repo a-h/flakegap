@@ -7,8 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/a-h/flakegap/export"
 	"github.com/a-h/flakegap/importcmd"
@@ -35,7 +37,8 @@ func main() {
 		printUsage()
 		os.Exit(1)
 	}
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	var err error
 
 	switch os.Args[1] {
@@ -105,6 +108,7 @@ func exportCmd(ctx context.Context) error {
 	cmdFlags.BoolVar(&args.ExportNix, "export-nix", true, "Export the Nix store paths required to build the flake.")
 	cmdFlags.Var(&outputsFlag, "output", "Specific flake output to export, e.g. .#devShells.x86_64-linux.default. May be repeated. Defaults to all outputs.")
 	cmdFlags.BoolVar(&args.Clean, "clean", false, "Remove the working directory before starting, forcing a full re-export.")
+	cmdFlags.StringVar(&args.BuildInputs, "build-inputs", export.BuildInputsUncached, "Build inputs to export. \"uncached\" walks the dependencies of each flake output and exports each dependency. It stops at dependencies that a binary cache holds, such as nixpkgs packages, and follows dependencies that no binary cache holds, such as those built from the flake's source, so that they can be rebuilt after changes to the source. \"all\" exports every dependency in the build closure, including the bootstrap chain, so that changes to nixpkgs packages can also be rebuilt.")
 	cmdFlags.BoolVar(&args.UseFilesystemCopy, "use-filesystem-copy", false, "Copy the source directory instead of cloning it with git. The copy includes files ignored by .gitignore.")
 	cmdFlags.BoolVar(&args.AllowDirty, "allow-dirty", false, "Allow export of a git repository with uncommitted changes. Uncommitted changes are not included in the exported source.")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")
@@ -148,6 +152,7 @@ func validateCmd(ctx context.Context) error {
 	cmdFlags.StringVar(&args.ExportFileName, "export-filename", "nix-export.tar.gz", "Filename of the nix-export.tar.gz file, defaults to nix-export.tar.gz")
 	cmdFlags.StringVar(&args.Platform, "platform", "amd64", "Platform to run the export on, e.g. amd64 / x86_64, arm64 / aarch64")
 	cmdFlags.StringVar(&args.Image, "image", "ghcr.io/a-h/flakegap:latest", "Image to run")
+	cmdFlags.StringVar(&args.DevelopCommand, "develop-command", "", "Command to run in each development shell. Each development shell is started as an interactive shell with nix develop whether or not a command is set.")
 	cmdFlags.BoolVar(&verboseFlag, "v", false, "")
 	cmdFlags.StringVar(&logLevelFlag, "log-level", "info", "")
 	cmdFlags.BoolVar(&args.Help, "help", false, "Show usage and quit")

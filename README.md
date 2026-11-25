@@ -4,7 +4,7 @@ Export a Flake's requirements so that they can be transferred across an airgap.
 
 ## How does it work?
 
-- Invokes various Nix commands to run all builds, and copy all derivations and the realised paths of all derivations required to build the outputs.
+- Invokes various Nix commands to run all builds, and copy all derivations, the outputs, and the realised build inputs required to rebuild the outputs.
 - Exports the Nix paths to a tarball.
 - Can validates the build by importing the tarball, and running the build in a Docker container with no network access.
 
@@ -20,11 +20,25 @@ flakegap export
 
 By default, the export clones the source directory with git, so files ignored by `.gitignore` are excluded. The export fails if the repository has uncommitted changes, because the exported Nix store may not match the exported source. Use `-allow-dirty` to export the last commit anyway, or `-use-filesystem-copy` to copy the directory as it is on disk, including ignored files, and to export a directory that is not a git repository.
 
+The target machine does not have an available binary cache or internet access, so the export must contain every store path that the target machine uses:
+
+- The flake's outputs, such as packages and development shells, and everything they reference at runtime.
+- The flake's inputs, such as the nixpkgs source.
+- The packages needed to rebuild the flake's own derivations, such as your application and its `node_modules`, after you change the source on the target machine.
+
+Packages from nixpkgs, such as bash or Node.js, are exported as built packages. The export leaves out the compilers and sources that built them, because the target machine uses the built packages and does not build them again. To tell your own derivations from nixpkgs packages, the export checks whether a binary cache served over HTTP or HTTPS holds each one. Your own derivations are not in a binary cache.
+
+Use `-build-inputs all` to also export everything used to build every package, back to the bootstrap tools. This is needed to change nixpkgs packages on the target machine, for example with an overlay, or when a binary cache configured on the export machine holds your own derivations. The export is much larger and takes much longer to create.
+
+The export requires Nix 2.18 or later.
+
 Import the `nix-export.tar.gz` file into the target environment along with the Flake code.
 
 ```bash
 flakegap import
 ```
+
+The exported store paths are not signed, so the import requires a user that the Nix daemon trusts. Run the import with `sudo`, or add your user to `trusted-users` in `/etc/nix/nix.conf` and restart the Nix daemon.
 
 If you don't have `flakegap` on the target machine, you can use the following commands:
 
@@ -65,6 +79,8 @@ Check that the Flake code can be built in an airgapped environment.
 ```bash
 flakegap validate
 ```
+
+The validation runs in a Linux container without network access. It imports the export, builds each output, and starts each development shell as an interactive shell with `nix develop`. Use `-develop-command` to also run a command in each interactive shell, for example to build the software with its tools. The command runs without network access.
 
 ### Manual validation
 
@@ -318,6 +334,14 @@ dir: testproject
 ```bash
 echo "Validating Flake requirements..."
 go run ../cmd/flakegap validate -image ghcr.io/a-h/flakegap:local
+```
+
+### test-ubuntu
+
+Exports `testproject`, then tests the export in an Ubuntu container with a multi-user Nix install and no network access. The test checks that an untrusted user cannot import the export, imports it as root, builds each output as a normal user, rebuilds after a change to the source, and starts an interactive shell with `nix develop`. Requires Docker, and Nix that can build for Linux, such as Determinate Nix on macOS. The test uses Ubuntu 26.04 by default. Set `UBUNTU_VERSION` to test another release, e.g. `UBUNTU_VERSION=24.04`.
+
+```bash
+./testproject/ubuntu/run.sh
 ```
 
 ### unit-test

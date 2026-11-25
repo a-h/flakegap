@@ -3,6 +3,7 @@ module github.com/a-h/flakegap
 go 1.26.0
 
 require (
+	github.com/creack/pty v1.1.18
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fatih/color v1.19.0

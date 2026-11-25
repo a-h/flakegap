@@ -126,7 +126,7 @@
           src = gitignore.lib.gitignoreSource ./.;
           go = pkgs.go;
           subPackages = [ "cmd/${name}" ];
-          vendorHash = "sha256-AihE0UQG4YYMllL6OA39JSLhF+lx+RekRakG4bgDQek=";
+          vendorHash = "sha256-4Vkqxnw8Ae6vrAvnv76NhiY+b/Rdnwo0vMTngczPQ7k=";
           goSum = ./go.sum;
           env = {
             CGO_ENABLED = "0";
