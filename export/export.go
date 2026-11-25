@@ -11,10 +11,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"github.com/a-h/flakegap/archive"
+	"github.com/a-h/flakegap/export/internal/source"
 	"github.com/a-h/flakegap/nixcmd"
 	"github.com/dustin/go-humanize"
 	"github.com/nix-community/go-nix/pkg/narinfo"
@@ -23,6 +23,12 @@ import (
 type Args struct {
 	// Code is the path to the repo on disk that contains a flake.nix file.
 	Code string
+	// UseFilesystemCopy copies the source directory instead of cloning it with git. The copy includes
+	// files that are ignored by .gitignore, and does not require the directory to be a git repository.
+	UseFilesystemCopy bool
+	// AllowDirty allows the export of a git repository that has uncommitted changes. The uncommitted
+	// changes are not included in the exported source.
+	AllowDirty bool
 	// ExportFileName is the path to write the output to, e.g. /tmp/nix-export.tar.gz.
 	ExportFileName string
 	// Architecture to build for.
@@ -85,10 +91,25 @@ func getWorkingDir(log *slog.Logger, args Args) (string, error) {
 	return filepath.Join(resolveBaseDir(log, args.TemporaryPath), name), nil
 }
 
+// sourceCopier copies the flake source code into the export.
+type sourceCopier interface {
+	// Validate checks that the source can be exported. It runs before the Nix export.
+	Validate() error
+	// CopyTo copies the source code into dir.
+	CopyTo(ctx context.Context, dir string) error
+}
+
 func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	nixExportPath, err := getWorkingDir(log, args)
 	if err != nil {
 		return fmt.Errorf("failed to compute working directory: %w", err)
+	}
+	var copier sourceCopier = source.NewGit(args.Code, args.AllowDirty)
+	if args.UseFilesystemCopy {
+		copier = source.NewFilesystem(args.Code)
+	}
+	if err = copier.Validate(); err != nil {
+		return fmt.Errorf("invalid source: %w", err)
 	}
 	if args.Clean {
 		log.Info("Cleaning working directory", slog.String("path", nixExportPath))
@@ -111,11 +132,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	if err := os.RemoveAll(srcOutputDir); err != nil {
 		return fmt.Errorf("failed to remove existing source directory: %w", err)
 	}
-	if err := os.MkdirAll(srcOutputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create source output directory: %w", err)
-	}
-	ignore := []string{".direnv", "nix-export", "nix-export.tar.gz", "result", "coverage.out", ".DS_Store"}
-	if err := os.CopyFS(srcOutputDir, newFilteredFS(os.DirFS(args.Code), ignore)); err != nil {
+	if err := copier.CopyTo(ctx, srcOutputDir); err != nil {
 		return fmt.Errorf("failed to copy source code: %w", err)
 	}
 
@@ -276,54 +293,6 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 	}
 	// End of the manually exported code.
 	return nil
-}
-
-type filteredFS struct {
-	fsys   fs.FS
-	ignore []string
-}
-
-func newFilteredFS(fsys fs.FS, ignore []string) filteredFS {
-	return filteredFS{fsys: fsys, ignore: ignore}
-}
-
-func (f filteredFS) Open(name string) (fs.File, error) {
-	file, err := f.fsys.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	return &filteredFile{File: file, ignore: f.ignore}, nil
-}
-
-func (f filteredFS) ReadLink(name string) (string, error) {
-	rl, ok := f.fsys.(fs.ReadLinkFS)
-	if !ok {
-		return "", &fs.PathError{Op: "readlink", Path: name, Err: errors.ErrUnsupported}
-	}
-	return rl.ReadLink(name)
-}
-
-type filteredFile struct {
-	fs.File
-	ignore []string
-}
-
-func (f *filteredFile) ReadDir(n int) (entries []fs.DirEntry, err error) {
-	dir, ok := f.File.(fs.ReadDirFile)
-	if !ok {
-		return nil, &fs.PathError{Op: "readdir", Path: ".", Err: errors.New("not a directory")}
-	}
-	all, err := dir.ReadDir(n)
-	if err != nil {
-		return all, err
-	}
-	entries = make([]fs.DirEntry, 0, len(all))
-	for _, e := range all {
-		if !slices.Contains(f.ignore, e.Name()) {
-			entries = append(entries, e)
-		}
-	}
-	return entries, nil
 }
 
 func copyOutput(srcPath, evaluatedPath, target string, fi os.FileInfo) error {

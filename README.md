@@ -18,6 +18,8 @@ Export the current directory's requirements to a `nix-export.tar.gz` file.
 flakegap export
 ```
 
+By default, the export clones the source directory with git, so files ignored by `.gitignore` are excluded. The export fails if the repository has uncommitted changes, because the exported Nix store may not match the exported source. Use `-allow-dirty` to export the last commit anyway, or `-use-filesystem-copy` to copy the directory as it is on disk, including ignored files, and to export a directory that is not a git repository.
+
 Import the `nix-export.tar.gz` file into the target environment along with the Flake code.
 
 ```bash
