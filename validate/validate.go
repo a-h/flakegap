@@ -19,10 +19,10 @@ type Args struct {
 	Image string
 	// Help shows usage and quits.
 	Help bool
-	// Architecture is the architecture to build for, e.g. x86_64, aarch64.
-	Architecture string
-	// Platform is the platform to run the container on, e.g. linux, darwin.
+	// Platform is the Docker platform to run the container on, e.g. amd64, arm64.
 	Platform string
+	// DevelopCommand is run with bash in each development shell, after the outputs are built.
+	DevelopCommand string
 }
 
 func (a Args) Validate() error {
@@ -35,9 +35,6 @@ func (a Args) Validate() error {
 	}
 	if a.Platform == "" {
 		errs = append(errs, fmt.Errorf("platform is required"))
-	}
-	if a.Architecture == "" {
-		errs = append(errs, fmt.Errorf("architecture is required"))
 	}
 	return errors.Join(errs...)
 }
@@ -64,7 +61,7 @@ func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
 	log.Info("Running build in airgapped container without binary cache", slog.String("platform", containerPlatform.String()), slog.String("image", args.Image))
 
 	codePath := filepath.Join(tgtPath, "source")
-	if err = container.Run(ctx, log, containerPlatform, args.Image, codePath, tgtPath, args.Architecture, args.Platform); err != nil {
+	if err = container.Run(ctx, log, containerPlatform, args.Image, codePath, tgtPath, args.DevelopCommand); err != nil {
 		return fmt.Errorf("failed to run container: %w", err)
 	}
 

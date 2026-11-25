@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/a-h/flakegap/archive"
+	"github.com/a-h/flakegap/export/internal/binarycache"
+	"github.com/a-h/flakegap/export/internal/buildinputs"
 	"github.com/a-h/flakegap/export/internal/source"
 	"github.com/a-h/flakegap/nixcmd"
 	"github.com/dustin/go-humanize"
@@ -46,6 +48,8 @@ type Args struct {
 	Outputs []string
 	// Clean removes the working directory before starting, forcing a full re-export.
 	Clean bool
+	// BuildInputs selects the build inputs to export, either BuildInputsUncached or BuildInputsAll.
+	BuildInputs string
 	// Help shows usage and quits.
 	Help bool
 }
@@ -63,6 +67,9 @@ func (a Args) Validate() error {
 	}
 	if a.Platform == "" {
 		errs = append(errs, fmt.Errorf("platform is required"))
+	}
+	if a.BuildInputs != BuildInputsUncached && a.BuildInputs != BuildInputsAll {
+		errs = append(errs, fmt.Errorf("build-inputs must be %q or %q, got %q", BuildInputsUncached, BuildInputsAll, a.BuildInputs))
 	}
 	return errors.Join(errs...)
 }
@@ -100,6 +107,9 @@ type sourceCopier interface {
 }
 
 func Run(ctx context.Context, log *slog.Logger, args Args) (err error) {
+	if err = args.Validate(); err != nil {
+		return fmt.Errorf("invalid arguments: %w", err)
+	}
 	nixExportPath, err := getWorkingDir(log, args)
 	if err != nil {
 		return fmt.Errorf("failed to compute working directory: %w", err)
@@ -189,6 +199,17 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 		}.Encode(),
 	}).String()
 
+	var selector buildinputs.Selector
+	if args.BuildInputs == BuildInputsUncached {
+		substituters, err := nixcmd.GetSubstituters(os.Stdout, os.Stderr)
+		if err != nil {
+			return fmt.Errorf("failed to get substituters: %w", err)
+		}
+		log.Info("Checking binary caches to select build inputs", slog.Any("substituters", substituters))
+		selector = buildinputs.NewSelector(binarycache.NewClient(log, substituters))
+	}
+	copier := newClosureCopier(log, args.Code, targetStore, args.BuildInputs, selector)
+
 	drvs := args.Outputs
 	if len(drvs) == 0 {
 		op, err := nixcmd.FlakeShow(os.Stdout, os.Stderr, args.Code)
@@ -221,7 +242,7 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 	for _, suffix := range suffixes {
 		nixpkgsRefWithSuffix := nixpkgsRef + suffix
 		log.Info("Copying nixpkgs to target", slog.String("target", targetStore), slog.String("ref", nixpkgsRefWithSuffix))
-		realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, nixpkgsRefWithSuffix)
+		realisedPathCount, err := copier.Copy(ctx, nixpkgsRefWithSuffix)
 		if err != nil {
 			return fmt.Errorf("failed to copy nixpkgs to %q: %w", targetStore, err)
 		}
@@ -253,7 +274,7 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 		// nix copy --derivation --to file://$PWD/export .#packages.x86_64-linux.default
 		// nix copy --to file://$PWD/nix-export/nix-store `nix-store --realise $(nix path-info --recursive --derivation .#)`
 		log.Info("Copying Nix closures to target", slog.String("ref", ref), slog.String("target", targetStore))
-		realisedPathCount, err := nixcmd.CopyToAll(os.Stdout, os.Stderr, args.Code, targetStore, ref)
+		realisedPathCount, err := copier.Copy(ctx, ref)
 		if err != nil {
 			return fmt.Errorf("failed to copy %q to %q: %w", ref, targetStore, err)
 		}

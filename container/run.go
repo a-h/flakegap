@@ -19,13 +19,15 @@ import (
 )
 
 var linuxAMD64 = Platform{
-	Architecture: "amd64",
-	Platform:     "linux",
+	Architecture:    "amd64",
+	Platform:        "linux",
+	NixArchitecture: "x86_64",
 }
 
 var linuxARM64 = Platform{
-	Architecture: "arm64",
-	Platform:     "linux",
+	Architecture:    "arm64",
+	Platform:        "linux",
+	NixArchitecture: "aarch64",
 }
 
 var dockerPlatforms = map[string]Platform{
@@ -50,13 +52,17 @@ func NewPlatform(s string) (Platform, error) {
 type Platform struct {
 	Architecture string
 	Platform     string
+	// NixArchitecture is the architecture in Nix system names, e.g. x86_64 in x86_64-linux.
+	NixArchitecture string
 }
 
 func (p Platform) String() string {
 	return fmt.Sprintf("%s/%s", p.Platform, p.Architecture)
 }
 
-func Run(ctx context.Context, log *slog.Logger, containerPlatform Platform, imageRef, codePath, nixExportPath, architecture, platform string) (err error) {
+// Run validates the export at nixExportPath by building the flake at codePath in a container without network
+// access, and running developCommand in each of its development shells.
+func Run(ctx context.Context, log *slog.Logger, containerPlatform Platform, imageRef, codePath, nixExportPath, developCommand string) (err error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return fmt.Errorf("failed to create docker client: %w", err)
@@ -81,6 +87,11 @@ func Run(ctx context.Context, log *slog.Logger, containerPlatform Platform, imag
 		AttachStderr: true,
 		Image:        imageRef,
 		Entrypoint:   []string{"/usr/local/bin/validate"},
+		Cmd: []string{
+			"-architecture", containerPlatform.NixArchitecture,
+			"-platform", containerPlatform.Platform,
+			"-develop-command", developCommand,
+		},
 	}
 	cconf.NetworkDisabled = true
 	hconf := &container.HostConfig{
@@ -112,9 +123,7 @@ func Run(ctx context.Context, log *slog.Logger, containerPlatform Platform, imag
 
 	// Wait for the container to finish and collect any errors.
 	var runErr, logErr error
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		respChan, errChan := cli.ContainerWait(ctx, cont.ID, container.WaitConditionNextExit)
 		select {
 		case resp := <-respChan:
@@ -127,18 +136,22 @@ func Run(ctx context.Context, log *slog.Logger, containerPlatform Platform, imag
 		case err := <-errChan:
 			runErr = fmt.Errorf("container wait error: %w", err)
 		case <-ctx.Done():
-			runErr = fmt.Errorf("container wait cancelled")
+			log.Info("Stopping container", slog.String("id", cont.ID))
+			// The context is cancelled, so the stop request uses a context without cancellation.
+			stopErr := cli.ContainerStop(context.WithoutCancel(ctx), cont.ID, container.StopOptions{})
+			if stopErr != nil {
+				stopErr = fmt.Errorf("failed to stop container: %w", stopErr)
+			}
+			runErr = errors.Join(fmt.Errorf("container wait cancelled: %w", ctx.Err()), stopErr)
 		}
-	}()
+	})
 
 	if err := cli.ContainerStart(ctx, cont.ID, container.StartOptions{}); err != nil {
 		return fmt.Errorf("failed to start container: %w", err)
 	}
 
 	// Stream the logs, now that the container is running.
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		r, err := cli.ContainerLogs(ctx, cont.ID, container.LogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
@@ -147,10 +160,11 @@ func Run(ctx context.Context, log *slog.Logger, containerPlatform Platform, imag
 		})
 		if err != nil {
 			logErr = fmt.Errorf("failed to get container logs: %w", err)
+			return
 		}
 		defer r.Close()
 		_, logErr = io.Copy(os.Stdout, r)
-	}()
+	})
 
 	wg.Wait()
 

@@ -1,0 +1,323 @@
+{
+  "/nix/store/04n7ridibb3z1i6sjl5js0h5kyxqxfsb-m4-1.4.19.tar.bz2.drv": {
+    "args": [
+      "-e",
+      "/nix/store/vj1c3wf9c11a0qs6p3ymfvrnsdgsdcbq-source-stdenv.sh",
+      "/nix/store/mkmplw6zphafsxz2hpsvjv3fyd5qn0ad-builder.sh"
+    ],
+    "builder": "/nix/store/8ivrpmp3arvxbr6imdwm2d28q9cjsqvi-bash-5.2p37/bin/bash",
+    "env": {
+      "SSL_CERT_FILE": "/no-cert-file.crt",
+      "__darwinAllowLocalNetworking": "",
+      "__impureHostDeps": "/bin/sh /usr/lib/libSystem.B.dylib /usr/lib/system/libunc.dylib /dev/zero /dev/random /dev/urandom /bin/sh",
+      "__propagatedImpureHostDeps": "",
+      "__propagatedSandboxProfile": "",
+      "__sandboxProfile": "",
+      "__structuredAttrs": "",
+      "buildInputs": "",
+      "builder": "/nix/store/8ivrpmp3arvxbr6imdwm2d28q9cjsqvi-bash-5.2p37/bin/bash",
+      "cmakeFlags": "",
+      "configureFlags": "",
+      "curlOpts": "",
+      "curlOptsList": "",
+      "depsBuildBuild": "",
+      "depsBuildBuildPropagated": "",
+      "depsBuildTarget": "",
+      "depsBuildTargetPropagated": "",
+      "depsHostHost": "",
+      "depsHostHostPropagated": "",
+      "depsTargetTarget": "",
+      "depsTargetTargetPropagated": "",
+      "doCheck": "",
+      "doInstallCheck": "",
+      "downloadToTemp": "",
+      "executable": "",
+      "impureEnvVars": "http_proxy https_proxy ftp_proxy all_proxy no_proxy HTTP_PROXY HTTPS_PROXY FTP_PROXY ALL_PROXY NO_PROXY NIX_SSL_CERT_FILE NIX_CURL_FLAGS NIX_HASHED_MIRRORS NIX_CONNECT_TIMEOUT NIX_MIRRORS_alsa NIX_MIRRORS_apache NIX_MIRRORS_bioc NIX_MIRRORS_bitlbee NIX_MIRRORS_centos NIX_MIRRORS_cpan NIX_MIRRORS_cran NIX_MIRRORS_debian NIX_MIRRORS_dub NIX_MIRRORS_fedora NIX_MIRRORS_gcc NIX_MIRRORS_gentoo NIX_MIRRORS_gnome NIX_MIRRORS_gnu NIX_MIRRORS_gnupg NIX_MIRRORS_hackage NIX_MIRRORS_hashedMirrors NIX_MIRRORS_ibiblioPubLinux NIX_MIRRORS_imagemagick NIX_MIRRORS_kde NIX_MIRRORS_kernel NIX_MIRRORS_luarocks NIX_MIRRORS_maven NIX_MIRRORS_mozilla NIX_MIRRORS_mysql NIX_MIRRORS_openbsd NIX_MIRRORS_opensuse NIX_MIRRORS_osdn NIX_MIRRORS_postgresql NIX_MIRRORS_pypi NIX_MIRRORS_qt NIX_MIRRORS_sageupstream NIX_MIRRORS_samba NIX_MIRRORS_savannah NIX_MIRRORS_sourceforge NIX_MIRRORS_steamrt NIX_MIRRORS_tcsh NIX_MIRRORS_testpypi NIX_MIRRORS_ubuntu NIX_MIRRORS_xfce NIX_MIRRORS_xorg",
+      "mesonFlags": "",
+      "mirrorsFile": "/nix/store/1sjhk5w80gzviw8f8bk9rafq25876i4v-mirrors-list",
+      "name": "m4-1.4.19.tar.bz2",
+      "nativeBuildInputs": "/nix/store/mz1glmzjjw3dlb692bxxw15y9jrf6ljz-curl-8.13.0-dev",
+      "nixpkgsVersion": "25.05",
+      "out": "/nix/store/mcayf992diwks293vs12iwx1ywgm4ijg-m4-1.4.19.tar.bz2",
+      "outputHash": "sha256-swapHA/ZO8QoDPwumMt6s5gf91oYe+oyk4EfRSyJqMg=",
+      "outputHashAlgo": "sha256",
+      "outputHashMode": "flat",
+      "outputs": "out",
+      "patches": "",
+      "postFetch": "",
+      "preferHashedMirrors": "",
+      "preferLocalBuild": "1",
+      "propagatedBuildInputs": "",
+      "propagatedNativeBuildInputs": "",
+      "showURLs": "",
+      "stdenv": "/nix/store/ka379g4i4q2m31v6szsmrdq09phbzpb5-stdenv-darwin",
+      "strictDeps": "",
+      "system": "aarch64-darwin",
+      "urls": "mirror://gnu/m4/m4-1.4.19.tar.bz2"
+    },
+    "inputDrvs": {
+      "/nix/store/8jp4mlcmafq35726pp4dvr140j5k2b7g-bash-5.2p37.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/8z7s9p7b8y2fra09kz0cscmn8wh3pdcf-mirrors-list.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/9ik82bg1375bjvigyx5ghgl99fjng3lf-curl-8.13.0.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "dev"
+        ]
+      },
+      "/nix/store/w2r0qjcc39kkr0j1p3sjqi760x3ndzs0-stdenv-darwin.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      }
+    },
+    "inputSrcs": [
+      "/nix/store/mkmplw6zphafsxz2hpsvjv3fyd5qn0ad-builder.sh",
+      "/nix/store/vj1c3wf9c11a0qs6p3ymfvrnsdgsdcbq-source-stdenv.sh"
+    ],
+    "name": "m4-1.4.19.tar.bz2",
+    "outputs": {
+      "out": {
+        "hash": "b306a91c0fd93bc4280cfc2e98cb7ab3981ff75a187bea3293811f452c89a8c8",
+        "hashAlgo": "sha256",
+        "method": "flat",
+        "path": "/nix/store/mcayf992diwks293vs12iwx1ywgm4ijg-m4-1.4.19.tar.bz2"
+      }
+    },
+    "system": "aarch64-darwin"
+  },
+  "/nix/store/582lknjwzdbbbds6c10va12alqnx2f5b-testproject-0.0.1.drv": {
+    "args": [
+      "-e",
+      "/nix/store/vj1c3wf9c11a0qs6p3ymfvrnsdgsdcbq-source-stdenv.sh",
+      "/nix/store/shkw4qm9qcw5sc5n1k5jznc83ny02r39-default-builder.sh"
+    ],
+    "builder": "/nix/store/8ivrpmp3arvxbr6imdwm2d28q9cjsqvi-bash-5.2p37/bin/bash",
+    "env": {
+      "__darwinAllowLocalNetworking": "",
+      "__impureHostDeps": "/bin/sh /usr/lib/libSystem.B.dylib /usr/lib/system/libunc.dylib /dev/zero /dev/random /dev/urandom /bin/sh",
+      "__propagatedImpureHostDeps": "",
+      "__propagatedSandboxProfile": "",
+      "__sandboxProfile": "",
+      "__structuredAttrs": "",
+      "buildInputs": "/nix/store/96vpirdcns8zxdwzwl7n804012lwrf1n-nodejs-22.14.0-dev",
+      "buildPhase": "runHook preBuild\n\nnpm run build\n\n# Copy the build to the output directory.\nmkdir -p $out\ncp -r ./build $out/lib\n\necho \"Creating entrypoint script...\"\nmkdir -p $out/bin\ncat << EOF > $out/bin/testproject\n#!/nix/store/g2r737j05jgy19c2yqnyvs71w8bxk4b1-bash-interactive-5.2p37/bin/bash\n/nix/store/g5bv4gi6p7ryhs2hbaryxs6ivsxa6lqc-nodejs-22.14.0/bin/node $out/lib/index.js\nEOF\nchmod +x $out/bin/testproject\n\nrunHook postBuild\n",
+      "builder": "/nix/store/8ivrpmp3arvxbr6imdwm2d28q9cjsqvi-bash-5.2p37/bin/bash",
+      "cmakeFlags": "",
+      "configureFlags": "",
+      "depsBuildBuild": "",
+      "depsBuildBuildPropagated": "",
+      "depsBuildTarget": "",
+      "depsBuildTargetPropagated": "",
+      "depsHostHost": "",
+      "depsHostHostPropagated": "",
+      "depsTargetTarget": "",
+      "depsTargetTargetPropagated": "",
+      "doCheck": "",
+      "doInstallCheck": "",
+      "dontStrip": "1",
+      "mesonFlags": "",
+      "name": "testproject-0.0.1",
+      "nativeBuildInputs": "/nix/store/96vpirdcns8zxdwzwl7n804012lwrf1n-nodejs-22.14.0-dev /nix/store/xzwrimyqidgfw5q5lby2d21330vzvan1-npm-config-hook /nix/store/cv9lnvlf6xgjgrwkwk6irjxaviigb81j-npm-build-hook /nix/store/3qnmdls2f423d0awizwqvfldbk98m7cd-npm-install-hook /nix/store/v0vy1c59f0vf71h64caw17hzymvg0zms-python3-3.12.10 /nix/store/1sl6knwmx45z37p9bnyv3r0yr4rxq9q9-cctools-1010.6-dev",
+      "npmBuildScript": "build",
+      "npmConfigHook": "/nix/store/xzwrimyqidgfw5q5lby2d21330vzvan1-npm-config-hook",
+      "npmDeps": "/nix/store/lx9fdid8ym68vcnxi53yi5i00fiffrj7-nodetestproject-1.0.0-sources",
+      "npm_config_arch": "arm64",
+      "npm_config_platform": "darwin",
+      "out": "/nix/store/im5v8wkzivxnz97cjv8594lz9w09v2xw-testproject-0.0.1",
+      "outputs": "out",
+      "patches": "",
+      "pname": "testproject",
+      "propagatedBuildInputs": "",
+      "propagatedNativeBuildInputs": "",
+      "src": "/nix/store/yz7i1shkbzm52kvj6wdw8hcr4z3zvv45-source",
+      "stdenv": "/nix/store/d8302dk9mnwh4z2f10ybs6i24smf15jp-stdenv-darwin",
+      "strictDeps": "1",
+      "system": "aarch64-darwin",
+      "version": "0.0.1"
+    },
+    "inputDrvs": {
+      "/nix/store/8jp4mlcmafq35726pp4dvr140j5k2b7g-bash-5.2p37.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/ai7q7dcjrq2rbg2c0blbw546l7j5dgfg-npm-build-hook.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/i22g9na0ll0m0kxydcjb71bg46bv8hdm-nodejs-22.14.0.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "dev",
+          "out"
+        ]
+      },
+      "/nix/store/jvhi1b6mammjkzc9jmixf0djihvxfk4r-python3-3.12.10.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/k6lnm9sfkpbz125c8g21pq4z6ghily3v-bash-interactive-5.2p37.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/n5lz9a8qxypzgh7d7qfdjcc1dqj57aa4-stdenv-darwin.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/qpx2n4ynd42wbcllpkn89000jisi6q3l-nodetestproject-1.0.0-sources.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/rwr21y9rx9wib69js183s4xdgn145wmh-cctools-1010.6.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "dev"
+        ]
+      },
+      "/nix/store/slljfvvxzvjasswdk8kgayizwkibz9ah-npm-install-hook.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/yil9i5c9kdbv652lp9fv56saxa9f70ia-npm-config-hook.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      }
+    },
+    "inputSrcs": [
+      "/nix/store/shkw4qm9qcw5sc5n1k5jznc83ny02r39-default-builder.sh",
+      "/nix/store/vj1c3wf9c11a0qs6p3ymfvrnsdgsdcbq-source-stdenv.sh",
+      "/nix/store/yz7i1shkbzm52kvj6wdw8hcr4z3zvv45-source"
+    ],
+    "name": "testproject-0.0.1",
+    "outputs": {
+      "out": {
+        "path": "/nix/store/im5v8wkzivxnz97cjv8594lz9w09v2xw-testproject-0.0.1"
+      }
+    },
+    "system": "aarch64-darwin"
+  },
+  "/nix/store/amwav2plnd3aq40pg3wsc3mbqifyj8c6-zlib-1.3.1.drv": {
+    "args": [
+      "-e",
+      "/nix/store/vj1c3wf9c11a0qs6p3ymfvrnsdgsdcbq-source-stdenv.sh",
+      "/nix/store/shkw4qm9qcw5sc5n1k5jznc83ny02r39-default-builder.sh"
+    ],
+    "builder": "/nix/store/2r4ps5pwai4sc6gq9z9pgs08hnl337z5-bash-5.2p37/bin/bash",
+    "env": {
+      "__darwinAllowLocalNetworking": "",
+      "__impureHostDeps": "/bin/sh /usr/lib/libSystem.B.dylib /usr/lib/system/libunc.dylib /dev/zero /dev/random /dev/urandom /bin/sh",
+      "__propagatedImpureHostDeps": "",
+      "__propagatedSandboxProfile": "",
+      "__sandboxProfile": "",
+      "__structuredAttrs": "",
+      "buildInputs": "",
+      "builder": "/nix/store/2r4ps5pwai4sc6gq9z9pgs08hnl337z5-bash-5.2p37/bin/bash",
+      "cmakeFlags": "",
+      "configureFlags": "--static --shared",
+      "configurePlatforms": "",
+      "depsBuildBuild": "",
+      "depsBuildBuildPropagated": "",
+      "depsBuildTarget": "",
+      "depsBuildTargetPropagated": "",
+      "depsHostHost": "",
+      "depsHostHostPropagated": "",
+      "depsTargetTarget": "",
+      "depsTargetTargetPropagated": "",
+      "dev": "/nix/store/kslccv8lpcq68f4jfppsx4d0zxmjcmrf-zlib-1.3.1-dev",
+      "doCheck": "1",
+      "doInstallCheck": "",
+      "dontAddStaticConfigureFlags": "1",
+      "dontConfigure": "",
+      "dontDisableStatic": "1",
+      "dontStrip": "",
+      "enableParallelBuilding": "1",
+      "enableParallelChecking": "1",
+      "enableParallelInstalling": "1",
+      "installFlags": "",
+      "makeFlags": "PREFIX= SHARED_MODE=1",
+      "mesonFlags": "",
+      "name": "zlib-1.3.1",
+      "nativeBuildInputs": "",
+      "out": "/nix/store/nvss2yn25aqrsri04bxj6izw2gwb65fy-zlib-1.3.1",
+      "outputDoc": "dev",
+      "outputs": "out dev static",
+      "patches": "",
+      "pname": "zlib",
+      "postInstall": "moveToOutput lib/libz.a \"$static\"\nfor file in $out/lib/*.so* $out/lib/*.dylib* ; do\n  install_name_tool -id \"$file\" $file\ndone\n",
+      "postPatch": "substituteInPlace configure \\\n  --replace '/usr/bin/libtool' 'ar' \\\n  --replace 'AR=\"libtool\"' 'AR=\"ar\"' \\\n  --replace 'ARFLAGS=\"-o\"' 'ARFLAGS=\"-r\"'\n",
+      "preConfigure": "",
+      "propagatedBuildInputs": "",
+      "propagatedNativeBuildInputs": "",
+      "setOutputFlags": "",
+      "src": "/nix/store/n22iqgfwr3jr08f9hl4140y3sqmrzf2z-zlib-1.3.1.tar.gz",
+      "static": "/nix/store/l1h4zhp9k3jdmqb1999nqjrn5dq9nw6r-zlib-1.3.1-static",
+      "stdenv": "/nix/store/pvmpk5xlv7499cjl17kl28hmr5zdq0qy-bootstrap-stage2-stdenv-darwin",
+      "strictDeps": "1",
+      "system": "aarch64-darwin",
+      "version": "1.3.1"
+    },
+    "inputDrvs": {
+      "/nix/store/029p46kxzk7b0jnsl3sr9zc9wnybmw73-bootstrap-stage2-stdenv-darwin.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/skcffxrm0ak4pbjg82db711cmi2kgg9s-bash-5.2p37.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      },
+      "/nix/store/z1mb7k4vd3dxjvls6611cvrz14kvg02s-zlib-1.3.1.tar.gz.drv": {
+        "dynamicOutputs": {},
+        "outputs": [
+          "out"
+        ]
+      }
+    },
+    "inputSrcs": [
+      "/nix/store/shkw4qm9qcw5sc5n1k5jznc83ny02r39-default-builder.sh",
+      "/nix/store/vj1c3wf9c11a0qs6p3ymfvrnsdgsdcbq-source-stdenv.sh"
+    ],
+    "name": "zlib-1.3.1",
+    "outputs": {
+      "dev": {
+        "path": "/nix/store/kslccv8lpcq68f4jfppsx4d0zxmjcmrf-zlib-1.3.1-dev"
+      },
+      "out": {
+        "path": "/nix/store/nvss2yn25aqrsri04bxj6izw2gwb65fy-zlib-1.3.1"
+      },
+      "static": {
+        "path": "/nix/store/l1h4zhp9k3jdmqb1999nqjrn5dq9nw6r-zlib-1.3.1-static"
+      }
+    },
+    "system": "aarch64-darwin"
+  }
+}
