@@ -17,6 +17,8 @@ type Metrics struct {
 	Dirs  int
 }
 
+// Unarchive extracts the .tar.gz file at src into the existing directory dst. Every write goes through an os.Root opened on dst,
+// so an entry cannot create or overwrite a file outside dst, even by traversing a symlink extracted earlier.
 func Unarchive(ctx context.Context, log *slog.Logger, src, dst string) (m Metrics, err error) {
 	file, err := os.Open(src)
 	if err != nil {
@@ -29,6 +31,12 @@ func Unarchive(ctx context.Context, log *slog.Logger, src, dst string) (m Metric
 		return m, err
 	}
 	defer gzipReader.Close()
+
+	root, err := os.OpenRoot(dst)
+	if err != nil {
+		return m, fmt.Errorf("failed to open destination %q: %w", dst, err)
+	}
+	defer root.Close()
 
 	tarReader := tar.NewReader(gzipReader)
 	lastLog := time.Now()
@@ -51,36 +59,38 @@ func Unarchive(ctx context.Context, log *slog.Logger, src, dst string) (m Metric
 		if !filepath.IsLocal(header.Name) {
 			return m, fmt.Errorf("tar contains invalid path: %s", header.Name)
 		}
-		target := filepath.Join(dst, header.Name)
 		switch header.Typeflag {
 		case tar.TypeDir:
 			m.Dirs++
-			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
+			if err := root.MkdirAll(header.Name, os.FileMode(header.Mode)); err != nil {
 				return m, err
 			}
 		case tar.TypeReg:
 			m.Files++
-			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+			if err := root.MkdirAll(filepath.Dir(header.Name), os.ModePerm); err != nil {
 				return m, err
 			}
-			outFile, err := os.Create(target)
+			outFile, err := root.OpenFile(header.Name, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode))
 			if err != nil {
+				return m, err
+			}
+			if err := outFile.Chmod(os.FileMode(header.Mode)); err != nil {
+				outFile.Close()
 				return m, err
 			}
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				outFile.Close()
 				return m, err
 			}
-			outFile.Close()
-			if err := os.Chmod(target, os.FileMode(header.Mode)); err != nil {
+			if err := outFile.Close(); err != nil {
 				return m, err
 			}
 		case tar.TypeSymlink:
 			m.Files++
-			if err := os.MkdirAll(filepath.Dir(target), os.ModePerm); err != nil {
+			if err := root.MkdirAll(filepath.Dir(header.Name), os.ModePerm); err != nil {
 				return m, err
 			}
-			if err := os.Symlink(header.Linkname, target); err != nil {
+			if err := root.Symlink(header.Linkname, header.Name); err != nil {
 				return m, err
 			}
 		default:
