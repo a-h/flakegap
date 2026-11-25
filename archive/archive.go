@@ -17,7 +17,11 @@ func Archive(ctx context.Context, srcPath, tgtPath string) (size int64, err erro
 	}
 	defer f.Close()
 
-	zw := gzip.NewWriter(f)
+	// The Nix store NARs are already zstd compressed, so compressing them again costs time without reducing size.
+	zw, err := gzip.NewWriterLevel(f, gzip.NoCompression)
+	if err != nil {
+		return size, fmt.Errorf("failed to create gzip writer: %w", err)
+	}
 	tw := tar.NewWriter(zw)
 
 	err = filepath.Walk(srcPath, func(path string, info os.FileInfo, err error) error {

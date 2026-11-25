@@ -179,9 +179,14 @@ func exportNix(ctx context.Context, log *slog.Logger, args Args, nixExportPath s
 	// # Copy the flake inputs to the store.
 	// nix flake archive --to file://$PWD/export
 
+	// The file:// store defaults to single-threaded xz compression, which takes hours for large closures.
 	targetStore := (&url.URL{
 		Scheme: "file",
 		Path:   filepath.Join(nixExportPath, "nix-store"),
+		RawQuery: url.Values{
+			"compression":          []string{"zstd"},
+			"parallel-compression": []string{"true"},
+		}.Encode(),
 	}).String()
 
 	drvs := args.Outputs
